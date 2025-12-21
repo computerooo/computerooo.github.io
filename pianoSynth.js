@@ -1,4 +1,5 @@
-//作者：电脑圈圈
+// @version V1.0.0.1
+//作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：合成钢琴音色
 //所有版权归作者电脑圈圈所有，仅供爱好者免费使用，严禁用于任何商业用途，否则后果自负
@@ -43,7 +44,7 @@ class PianoSynth {
 
     for (let i = 0; i < length; i++) {
       data[i] /= maxVar;
-      data[i] *= 0.8;
+      data[i] *= 0.6;
     }
   }
 
@@ -97,15 +98,16 @@ class PianoSynth {
 
     const delayLine = this.createPluckedNoise(delayLength, frequency);
 
-    const feedback = this.calStringDamping(frequency);
+    const stringDamping = this.calStringDamping(frequency);
+    const feedback = stringDamping;
     const inharmonicity = this.calInharmonicity(frequency);
 
-    for (let i = 0; i < length; i++) {
+    for (let i = 0; i < length; i ++) {
       const readIndex = i % delayLength;
       let sample = delayLine[readIndex];
-
       const modulation = 1.0 + inharmonicity * Math.sin(i * 0.0001);
       const newSample = sample * feedback * modulation;
+
       if (i > delayLength * 10) {
         delayLine[readIndex] = newSample;
       }
@@ -459,35 +461,35 @@ class PianoSynth {
     return 440 * Math.pow(2, (midiNote - 69) / 12);
   }
 
-  playMIDINote(midiNote, duration = 1.5, velocity = 0.9) {
+  async playMIDINote(midiNote, duration = 1.5, velocity = 0.9) {
+    const ret = await AudioManagerAPI.playAudioSegment('piano', midiNote - 21);
+    if (ret) {
+      return ret;
+    }
     const freq = this.midiToFrequency(midiNote);
     return this.playNote(freq, duration, velocity);
   }
 
   playNote(frequency, duration = 1.0, velocity = 1.0) {
     const stringBuffer = this.generateStringVibration(frequency, duration);
-    const playBuffer = this.audioContext.createBuffer(stringBuffer.numberOfChannels, stringBuffer.length, this.sampleRate);
-
-    const stringData = stringBuffer.getChannelData(0);
-    const playData = playBuffer.getChannelData(0);
-    const stringGain = velocity;
-
-    for (let i = 0; i < stringData.length; i++) {
-      playData[i] = stringData[i] * stringGain;
-    }
 
     const source = this.audioContext.createBufferSource();
-    source.buffer = playBuffer;
+    source.buffer = stringBuffer;
+
+    const gainNode = this.audioContext.createGain();
+    gainNode.gain.value = velocity;
+
+    source.connect(gainNode);
 
     if (this.audioContext.destination.channelCount > 1) {
       const panner = this.audioContext.createStereoPanner();
       const panValue = Math.log10(frequency / 440) * 1.0;
       panner.pan.value = Math.max(-0.5, Math.min(0.5, panValue));
 
-      source.connect(panner);
+      gainNode.connect(panner);
       panner.connect(this.audioContext.destination);
     } else {
-      source.connect(this.audioContext.destination);
+      gainNode.connect(this.audioContext.destination);
     }
 
     source.start();
@@ -495,11 +497,15 @@ class PianoSynth {
 
     return {
       source: source,
+      gainNode: gainNode,
       stop: () => {
         if (source) {
           source.stop();
         }
-      }
+      },
+      setVolume: (vol) => {
+        gainNode.gain.value = Math.max(0, Math.min(1, vol));
+      },
     };
   }
 
@@ -526,7 +532,7 @@ class PianoSynth {
     return blackKeyCount;
   }
 
-  onKeyDown(note, showAns = true, byUser = true) {
+  async onKeyDown(note, showAns = true, byUser = true) {
     let noteColors = null;
     if (note == undefined) {
       return;
@@ -537,21 +543,23 @@ class PianoSynth {
     if ((this.ansNotes != null) && ((this.curInputIndex >= this.ansNotes.length) || !byUser)) {
       showAns = false;
     }
+    const keyElement = document.querySelector(`[data-note="${note.name}"]`);
     if (showAns) {
       this.dispNotes[this.curInputIndex] = note.note;
       if (this.ansNotes != null) {
-        if (this.ansNotes[this.curInputIndex] == note.note) {
-          this.noteColors[this.curInputIndex] = 0xFF99FF00;
-        } else {
-          if (trainMode == 'Test_interval') {
-            if ((note.note == this.ansNotes[0]) || (note.note == this.ansNotes[1])) {
-              this.noteColors[this.curInputIndex] = 0xFF99FF00;
-            } else {
-              this.noteColors[this.curInputIndex] = 0xFFFF0000;
-            }
+        if (trainMode == 'Test_interval') {
+          if (((note.note == this.ansNotes[0]) || (note.note == this.ansNotes[1])) &&
+              ((this.curInputIndex == 0) || (this.dispNotes[0] != note.note || this.ansNotes[0] == this.ansNotes[1]))) {
+            this.noteColors[this.curInputIndex] = 0xFF99FF00;
           } else {
             this.noteColors[this.curInputIndex] = 0xFFFF0000;
+            playTipsError();
           }
+        } else if (this.ansNotes[this.curInputIndex] == note.note) {
+          this.noteColors[this.curInputIndex] = 0xFF99FF00;
+        } else {
+          this.noteColors[this.curInputIndex] = 0xFFFF0000;
+          playTipsError();
         }
         noteColors = this.noteColors;
       }
@@ -561,7 +569,6 @@ class PianoSynth {
       if (this.curInputIndex >= this.maxDispNotes) {
         this.cleanHistNoteInfo();
       }
-      const keyElement = document.querySelector(`[data-note="${note.name}"]`);
       if (keyElement) {
         keyElement.style.background = note.color === 'white' ? '#e0e0e0' : '#555';
         keyElement.style.transform = 'translateY(3px)';
@@ -577,7 +584,13 @@ class PianoSynth {
     if ((playTimerId != -1) && (trainMode.startsWith("Test")) && (byUser == true)) {
       return;
     }
-    this.playMIDINote(note.note + shiftValue, this.defDuration, velocity);
+    const ret = await this.playMIDINote(note.note + shiftValue, this.defDuration, velocity);
+    if (keyElement) {
+      if (keyElement.curPlayCt) {
+        onKeyUp(note, byUser);
+      }
+      keyElement.curPlayCtl = ret;
+    }
   }
 
   checkCorrect() {
@@ -621,11 +634,37 @@ class PianoSynth {
 
   allKeysUp() {
     for (let i = 0; i < kbNotes.length; i ++) {
-      this.onKeyUp(kbNotes[i]);
+      this.onKeyUp(kbNotes[i], false);
     }
   }
 
-  onKeyUp(note) {
+  onKeyRelease(obj, note, curPlayCtl, vol) {
+    const noteVal = note.note + shiftValue;
+    if (vol <= 0.01) {
+      curPlayCtl.stop();
+      curPlayCtl = null;
+    } else {
+      curPlayCtl.setVolume(vol);
+      let ratio = 0.96;
+      if (noteVal < 30) {
+        ratio = 0.985;
+      } else if (noteVal < 33) {
+        ratio = 0.98;
+      } else if (noteVal < 45) {
+        ratio = 0.97;
+      } else if (noteVal < 57) {
+        ratio = 0.965;
+      } else if (noteVal < 69) {
+        ratio = 0.96;
+      }
+      setTimeout(obj.onKeyRelease, 1, obj, note, curPlayCtl, vol * ratio);
+    }
+  }
+
+  onKeyUp(note, byUser = true) {
+    if ((playTimerId != -1) && (trainMode.startsWith("Train")) && (byUser == true)) {
+      return;
+    }
     const keyElement = document.querySelector(`[data-note="${note.name}"]`);
     if (keyElement && keyElement.down) {
       keyElement.down = false;
@@ -635,6 +674,13 @@ class PianoSynth {
         this.cleanHistNoteInfo();
         window.Display.showNotes([]);
       }
+    }
+    if ((playTimerId != -1) && (trainMode.startsWith("Test")) && (byUser == true)) {
+      return;
+    }
+    if (keyElement.curPlayCtl) {
+      setTimeout(this.onKeyRelease, 100, this, note, keyElement.curPlayCtl, 1.0);
+      keyElement.curPlayCtl = null;
     }
   }
 
@@ -794,6 +840,16 @@ class PianoSynth {
           this.onKeyUp(note);
       });
 
+      key.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+        this.onKeyDown(note);
+      });
+
+      key.addEventListener('touchend', (e) => {
+          e.preventDefault();
+        this.onKeyUp(note);
+      });
+
       keyboard.appendChild(key);
     });
 
@@ -814,57 +870,6 @@ class PianoSynth {
     });
   }
 
-  showLoading(text) {
-    const div = document.createElement('div');
-    div.innerHTML = `<div style="
-      position:fixed;
-      top:0;
-      left:0;width:100%;
-      height:100%;
-      background:rgba(0,0,0,0.5);
-      z-index:9999;
-      display:flex;
-      justify-content:center;align-items:center">
-      <div style="
-        background:white;
-        padding:30px;
-        border-radius:10px;
-        white-space: pre-wrap;
-        text-align:center">
-        <div style="
-          width:40px;
-          height:40px;
-          border:4px solid #f3f3f3;
-          border-top:4px solid #3498db;
-          border-radius:50%;margin:0 auto 15px;
-          animation:spin 1s linear infinite">
-        </div>
-        ${text}
-      <div  id='loadingText' style="
-        background:white;
-        padding:30px;
-        border-radius:10px;
-        text-align:center">
-        已完成0%
-      </div>
-      </div>
-    </div>`;
-    div.id = 'loadingDialog';
-    document.body.appendChild(div);
-
-    if (!document.querySelector('#loadingStyle')) {
-        const style = document.createElement('style');
-        style.id = 'loadingStyle';
-        style.textContent = '@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}';
-        document.head.appendChild(style);
-    }
-  }
-
-  hideLoading() {
-    const dialog = document.getElementById('loadingDialog');
-    if (dialog) dialog.remove();
-  }
-
   onPreGenNote(obj) {
       if (obj.preGenIndex < kbNotes.length) {
         const note = kbNotes[obj.preGenIndex].note + shiftValue;
@@ -877,16 +882,27 @@ class PianoSynth {
         obj.preGenIndex ++;
         setTimeout(obj.onPreGenNote, 1, obj);
       } else {
-        obj.hideLoading();
+        hideLoading();
       }
   }
 
-  preGenNotes() {
+  async preGenNotes() {
     const low = shiftValue + kbNotes[0].note;
     const hi = shiftValue + kbNotes[kbNotes.length - 1].note;
     if ((low >= this.preGenedLow) && (hi <= this.preGenedHi)) {
       return;
     }
+    if (await AudioManagerAPI.loadAudioRes()) {
+      this.preGenedLow = 0;
+      this.preGenedHi = 256;
+      globalInfoText = '当前为高品质模式';
+      globalInfoTextSize = 20;
+      this.cleanHistNoteInfo();
+      return;
+    }
+    globalInfoText = '当前为合成模式';
+    globalInfoTextSize = 20;
+    this.cleanHistNoteInfo();
     if (low < this.preGenedLow) {
       this.preGenedLow = low;
     }
@@ -894,7 +910,7 @@ class PianoSynth {
       this.preGenedHi = hi;
     }
     this.preGenIndex = 0;
-    this.showLoading('本钢琴音色使用物理建模软件现场合成，\n计算量大，正在合成中，请耐心等待……');
+    showLoading('本钢琴音色使用物理建模软件现场合成，\n计算量大，正在合成中，请耐心等待……');
     setTimeout(this.onPreGenNote, 50, this);
   }
 }

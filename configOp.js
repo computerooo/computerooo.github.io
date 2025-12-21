@@ -1,4 +1,5 @@
-//作者：电脑圈圈
+// @version V1.0.0.1
+//作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置参数
 //所有版权归作者电脑圈圈所有，仅供爱好者免费使用，严禁用于任何商业用途，否则后果自负
@@ -39,6 +40,79 @@ function getChordName(note) {
   return pitch + funcName + '\n' + getChordDegName(sing) + funcName;
 }
 
+let lastPlay002Time = 0;
+async function playTipsThis() {
+  let ret = false;
+  let need = false;
+
+  if (trainTimes > 1 && curTimes < trainTimes) {
+    let range = 2;
+    if (trainMode.endsWith("block_chord")) {
+      range = 4;
+    } else if (trainMode.endsWith("interval")) {
+      range = 3;
+    }
+    if (Math.floor(Math.random() * range) == 0) {
+      need = true;
+    }
+  }
+
+  if (trainMode.endsWith("interval") || trainMode.endsWith("block_chord")) {
+    need = need && (playInterval >= 500) && (trainTimes + ansTimes >= 3);
+  } else {
+    need = need && (seqLen >= 3) && (playInterval >= 300) && (trainTimes + ansTimes >= 3);
+  }
+
+  if (need == true) {
+    let id = 'voice_000';
+    if (!trainMode.endsWith("block_chord")) {
+      if (noteToSingName(noteSeqs[0]) === ' 6 ') {
+        if (Math.floor(Math.random() * 10) < 7) {
+          id = 'voice_600';
+        }
+      }
+    }
+    if ((Date.now() - lastPlay002Time > 1000 * 60 * 5) && (Math.floor(Math.random() * 20) == 0)) {
+      id = 'voice_002';
+      lastPlay002Time = Date.now();
+    }
+    const cnt = await AudioManagerAPI.getAudioSegmentCnt(id);
+    if (cnt > 0) {
+      ret = await AudioManagerAPI.playAudioSegment(id, Math.floor(Math.random() * cnt));
+    }
+  }
+
+  if (ret) {
+    playTimerId = setTimeout(onAutoPlay, ret.playTime);
+  } else {
+    playTimerId = setTimeout(onAutoPlay, playInterval);
+  }
+}
+
+async function playTipsError() {
+  await AudioManagerAPI.playAudioSegment('voice_003', 0);
+}
+
+async function playTipsNext() {
+  let ret = false;
+
+  if (trainMode.endsWith("interval") || trainMode.endsWith("block_chord")) {
+    if ((playInterval >= 500) && (trainTimes + ansTimes >= 3)) {
+      ret = await AudioManagerAPI.playAudioSegment('voice_001', 0);
+    }
+  } else {
+    if ((seqLen >= 3) && (playInterval >= 300) && (trainTimes + ansTimes >= 3)) {
+      ret = await AudioManagerAPI.playAudioSegment('voice_001', 0);
+    }
+  }
+
+  if (ret) {
+    playTimerId = setTimeout(onAutoPlay, ret.playTime);
+  } else {
+    playTimerId = setTimeout(onAutoPlay, playInterval);
+  }
+}
+
 function onAutoPlay() {
   if (needCleanHist == true) {
     piano.cleanHistNoteInfo(true);
@@ -46,7 +120,7 @@ function onAutoPlay() {
   }
   if (lastKey > 0) {
     note = kbNotes[lastKey - kbNotes[0].note];
-    piano.onKeyUp(note);
+    piano.onKeyUp(note, false);
     lastKey = -1;
   }
   if (noteIndex < noteSeqs.length) {
@@ -91,6 +165,12 @@ function onAutoPlay() {
     if ((trainMode.startsWith("Test")) && (noteIndex >= noteSeqs.length)) {
       playTimerId = setTimeout(onAutoPlay, playInterval);
       noteIndex ++;
+      if (noteIndex >= (noteSeqs.length + 1)) {
+        for (let i = 0; i < noteSeqs.length; i ++) {
+          note = kbNotes[noteSeqs[i] - kbNotes[0].note];
+          piano.onKeyUp(note, false);
+        }
+      }
       if (noteIndex >= (noteSeqs.length + 2)) {
         noteIndex = 0;
       }
@@ -100,12 +180,16 @@ function onAutoPlay() {
     piano.cleanHistNoteInfo(true);
     if ((noteIndex == noteSeqs.length) && (seqLen > 1)) {
       noteIndex ++;
+      playTipsThis();
+      return;
     } else {
       noteIndex = 0;
       curTimes ++;
       if (curTimes >= (trainTimes + ansTimes)) {
         curTimes = 0;
         noteSeqs = genNoteSeqs();
+        playTipsNext();
+        return;
       }
     }
   }
@@ -114,6 +198,7 @@ function onAutoPlay() {
 }
 
 function onTestNext(isCorrect) {
+  piano.allKeysUp();
   curAnsCnt ++;
   if (isCorrect) {
     correctAnsCnt ++;
@@ -357,7 +442,7 @@ function stopPlay() {
   }
   if (lastKey > 0) {
     note = kbNotes[lastKey - kbNotes[0].note];
-    piano.onKeyUp(note);
+    piano.onKeyUp(note, false);
     lastKey = -1;
   }
   if (trainMode.startsWith("Train")) {
@@ -460,6 +545,7 @@ function calAllNotes() {
     name = (name - 1) % 7 + 1;
     cnt ++;
   }
+
 }
 
 function updateLowSel() {
@@ -490,6 +576,9 @@ function updateRefSel() {
   selectElement.innerHTML = '';
 
   for (i = lowSelValue; i <= hiSelValue; i ++) {
+    if (i < 0) {
+      break;
+    }
     const optionElement = document.createElement('option');
     optionElement.value = i;
     optionElement.textContent = allOptNames[i];
@@ -576,7 +665,17 @@ function updateKbNoteNames() {
     if (keyElement != null) {
       const singName = noteToSingName(note.note, isFlatKey);
       const pitchName = noteToPitchName(note.note, isFlatKey);
-      keyElement.textContent = pitchName.replaceAll(' ', '') + '\n' + singName.replaceAll(' ', '');
+      const nStr = (note.color == 'white') ? '' + (Math.floor((note.note + shiftValue) / 12) - 1) : '';
+      keyElement.textContent = pitchName.replaceAll(' ', '') + nStr + '\n' + singName.replaceAll(' ', '');
+      if (note.note + shiftValue == 60) {
+        keyElement.style.color = '#00ff00';
+      } else if (note.note + shiftValue == 69) {
+        keyElement.style.color = '#ff0000';
+      } else if (note.color == 'white') {
+        keyElement.style.color = 'black';
+      } else if (note.color == 'black') {
+        keyElement.style.color = 'white';
+      }
     }
   }
 }
@@ -658,6 +757,7 @@ function onAnsTimesSelClick() {
 
 function onShiftSelClick() {
   shiftValue = parseInt(event.target.value, 10) * 12;
+  updateKbNoteNames();
   piano.preGenNotes();
 }
 

@@ -1,16 +1,17 @@
-//作者：电脑圈圈
+// @version V1.0.0.1
+//作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：显示器
 //所有版权归作者电脑圈圈所有，仅供爱好者免费使用，严禁用于任何商业用途，否则后果自负
 
 class SimpleDisplay {
-  constructor(containerId, width = 1012, height = 100) {
+  constructor(containerId, width = 1012, height = 123) {
     this.container = document.getElementById(containerId);
     this.width = width;
     this.height = height;
 
-    this.lineSpacing = 10;
-    this.Top = 30;
+    this.lineSpacing = 14;
+    this.Top = 32;
     this.noteX = 30;
     this.noteRadius = 5;
     this.noteOffset = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
@@ -143,7 +144,7 @@ class SimpleDisplay {
       const pitchName = noteToPitchName(midiIndex, flat);
       const oct = Math.floor((midiIndex - 60) / 12);
 
-      const middleC = this.Top + 1.5 * this.lineSpacing;
+      const middleC = this.Top + 1.5 * this.lineSpacing + 1.0;
       const semitoneOffset = (noteOffset + oct * 7) * (this.lineSpacing / 2);
       let noteY = middleC - semitoneOffset;
       let noteX = this.noteX;
@@ -166,9 +167,9 @@ class SimpleDisplay {
             noteY -= this.lineSpacing / 2;
         }
         const acc = document.createElement('div');
-        const symbol = flat ? '♭' : '♯';
-        const Y = flat ? noteY - 15 : noteY - 13;
-        const X = flat ? noteX - 16 : noteX - 11;
+        const symbol = flat ? 'b' : '♯';
+        const Y = flat ? noteY - 14 : noteY - 13;
+        const X = flat ? noteX - 14 : noteX - 11;
         acc.textContent = symbol;
         acc.style.cssText = `
           position: absolute;
@@ -199,7 +200,8 @@ class SimpleDisplay {
       `;
       this.noteArea.appendChild(note);
 
-      for (let i = 0; i < Math.floor((noteY - (this.Top + 4 * this.lineSpacing)) / this.lineSpacing); i ++) {
+      // low add
+      for (let i = 0; i < Math.floor((noteY - (this.Top + 4 * this.lineSpacing) + 0.5) / this.lineSpacing); i ++) {
         const y = this.Top + (i + 5) * this.lineSpacing;
         const line = document.createElement('div');
         line.style.cssText = `
@@ -214,7 +216,8 @@ class SimpleDisplay {
         this.noteArea.appendChild(line);
       }
 
-      for (let i = 0; i < Math.floor((this.Top - noteY) / this.lineSpacing); i ++) {
+      // up add
+      for (let i = 0; i < Math.floor((this.Top - noteY) / this.lineSpacing + 0.5); i ++) {
         const y = this.Top - (i + 1) * this.lineSpacing;
         const line = document.createElement('div');
         line.style.cssText = `
@@ -291,8 +294,4 @@ window.initDisplay = function() {
   }
 };
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', window.initDisplay);
-} else {
-  window.initDisplay();
-}
+document.addEventListener('ceAllJsLoadDoneEvent', window.initDisplay);
