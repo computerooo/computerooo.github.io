@@ -872,7 +872,7 @@ const configPairs = [
   {key:'lowSelect', def:'4'},
   {key:'hiSelect', def:'7'},
   {key:'refSelect', def:'7'},
-  {key:'speedSelect', def:'550'},
+  {key:'speedSelect', def:'545'},
   {key:'trainTimesSelect', def:'3'},
   {key:'ansTimesSelect', def:'2'},
   {key:'shiftSelect', def:'+1'},
