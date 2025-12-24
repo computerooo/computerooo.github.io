@@ -1,4 +1,4 @@
-// @version V1.0.0.2
+// @version V1.0.0.3
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：合成钢琴音色
@@ -10,7 +10,6 @@ class AudioManager {
     this.db = null;
     this.isInitialized = false;
     this.initAudioContext();
-    this.initDatabase();
     this.pianoAudio = null;
     this.cachedAudios = {};
   }
@@ -517,37 +516,6 @@ class AudioManager {
     return null;
   }
 
-  async clearCache(cacheId = null) {
-    if (!this.db) return;
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(['audio_cache', 'audio_meta'], 'readwrite');
-
-      if (cacheId) {
-        const audioStore = transaction.objectStore('audio_cache');
-        audioStore.delete(cacheId);
-        const metaStore = transaction.objectStore('audio_meta');
-        metaStore.delete('current_version_' + cacheId);
-      } else {
-        const audioStore = transaction.objectStore('audio_cache');
-        audioStore.clear();
-        const metaStore = transaction.objectStore('audio_meta');
-        metaStore.clear();
-      }
-
-      transaction.oncomplete = () => {
-        console.log('Cache cleared successfully');
-        this.audioWav = null;
-        this.currentVersion = '';
-        resolve();
-      };
-
-      transaction.onerror = (event) => {
-        reject(event.target.error);
-      };
-    });
-  }
-
   async loadAudioRes() {
     if (this.cachedAudios['piano']) {
       return true;
@@ -556,18 +524,18 @@ class AudioManager {
     this.showProgressDialog();
 
     const allAudioRes = [
-      {key: 'piano', path: '/audio/piano.mp3', ver: 'V1.0.0.2'},
-      {key: 'voice_000', path: '/audio/voice_000.mp3', ver: 'V1.0.0.2'},
-      {key: 'voice_001', path: '/audio/voice_001.mp3', ver: 'V1.0.0.2'},
-      {key: 'voice_002', path: '/audio/voice_002.mp3', ver: 'V1.0.0.2'},
-      {key: 'voice_003', path: '/audio/voice_003.mp3', ver: 'V1.0.0.2'},
-      {key: 'voice_600', path: '/audio/voice_600.mp3', ver: 'V1.0.0.2'},
+      {key: 'piano', path: './audio/piano.mp3', ver: 'V1.0.0.2'},
+      {key: 'voice_000', path: './audio/voice_000.mp3', ver: 'V1.0.0.2'},
+      {key: 'voice_001', path: './audio/voice_001.mp3', ver: 'V1.0.0.2'},
+      {key: 'voice_002', path: './audio/voice_002.mp3', ver: 'V1.0.0.2'},
+      {key: 'voice_003', path: './audio/voice_003.mp3', ver: 'V1.0.0.2'},
+      {key: 'voice_600', path: './audio/voice_600.mp3', ver: 'V1.0.0.2'},
     ];
 
     for (let i = 0; i < allAudioRes.length; i ++) {
       try {
         this.cachedAudios[allAudioRes[i].key] = await this.checkVersionAndUpdate(allAudioRes[i].path,
-                allAudioRes[i].key, allAudioRes[i].ver);
+                allAudioRes[i].key, allAudioRes[i].ver, false);
       } catch (error) {
         console.error('Audio update failed:', error);
         this.cachedAudios[allAudioRes[i].key] = null;
@@ -590,6 +558,14 @@ async function initAudioManager() {
     audioManager = new AudioManager();
     await audioManager.initDatabase();
   }
+  let timeout = 100;
+  while ((!audioManager.isInitialized) || (audioManager.db == null)) {
+    await new Promise(resolve => setTimeout(resolve, 10));
+    timeout --;
+    if (timeout <= 0) {
+      break;
+    }
+  }
   return audioManager;
 }
 
@@ -602,11 +578,6 @@ async function updateAudio(mp3Url, cacheId, version, forceUpdate = false) {
     console.error('Audio update failed:', error);
     throw error;
   }
-}
-
-async function clearAudioCache(cacheId = null) {
-  if (!audioManager) return;
-  return await audioManager.clearCache(cacheId);
 }
 
 async function loadAudioRes() {
@@ -622,7 +593,6 @@ async function loadAudioRes() {
 window.AudioManagerAPI = {
   init: initAudioManager,
   updateAudio: updateAudio,
-  clearCache: clearAudioCache,
   loadAudioRes: loadAudioRes,
 
   downloadMP3: async (url) => {

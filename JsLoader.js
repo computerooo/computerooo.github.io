@@ -191,139 +191,30 @@ class JsLoader {
       }
     }
   }
-
-  async cleanupCache(maxAge = 30 * 24 * 60 * 60 * 1000) { // Default 30 days
-    await this.waitForInitialization();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
-      const index = store.index('timestamp');
-      const cutoff = Date.now() - maxAge;
-
-      const request = index.openCursor(IDBKeyRange.upperBound(cutoff));
-      const keysToDelete = [];
-
-      request.onsuccess = (event) => {
-        const cursor = event.target.result;
-        if (cursor) {
-          keysToDelete.push(cursor.primaryKey);
-          cursor.continue();
-        } else {
-          // Delete all expired entries
-          keysToDelete.forEach(key => {
-            store.delete(key);
-          });
-          resolve(keysToDelete.length);
-        }
-      };
-
-      request.onerror = () => {
-        reject(new Error('Cache cleanup failed'));
-      };
-    });
-  }
-
-  async getCacheStats() {
-    await this.waitForInitialization();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readonly');
-      const store = transaction.objectStore(this.storeName);
-      const request = store.getAll();
-
-      request.onsuccess = (event) => {
-        const items = event.target.result;
-        const stats = {
-          total: items.length,
-          totalSize: 0,
-          items: items.map(item => ({
-            path: item.path,
-            version: item.version,
-            size: item.content.length,
-            timestamp: new Date(item.timestamp).toLocaleString()
-          }))
-        };
-
-        stats.totalSize = items.reduce((sum, item) => sum + item.content.length, 0);
-        resolve(stats);
-      };
-
-      request.onerror = () => {
-        reject(new Error('Failed to get cache statistics'));
-      };
-    });
-  }
-
-  async deleteCache(path) {
-    await this.waitForInitialization();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
-      const request = store.delete(path);
-
-      request.onsuccess = () => {
-        resolve(true);
-      };
-
-      request.onerror = () => {
-        reject(new Error('Failed to delete cache'));
-      };
-    });
-  }
-
-  async clearCache() {
-    await this.waitForInitialization();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
-      const request = store.clear();
-
-      request.onsuccess = () => {
-        resolve(true);
-      };
-
-      request.onerror = () => {
-        reject(new Error('Failed to clear cache'));
-      };
-    });
-  }
-
-  isScriptLoaded(path) {
-    return !!document.querySelector(`script[data-cached-path="${path}"]`);
-  }
-
-  async loadJsWithCallback(path, version = null, callback = null) {
-    try {
-      await this.loadJs(path, version);
-      if (callback && typeof callback === 'function') {
-        callback(null, path);
-      }
-    } catch (error) {
-      if (callback && typeof callback === 'function') {
-        callback(error, path);
-      }
-      throw error;
-    }
-  }
 }
 
 const jsLoader = new JsLoader();
 
 document.addEventListener('DOMContentLoaded', async () => {
   allNeedJsFile = [
-    {path: 'AudioManager.js', version: 'V1.0.0.2'},
-    {path: 'pianoSynth.js', version: 'V1.0.0.2' },
-    {path: 'configUi.js', version: 'V1.0.0.2' },
-    {path: 'configOp.js', version: 'V1.0.0.2' },
-    {path: 'displayer.js', version: 'V1.0.0.2' },
+    {path: './AudioManager.js', version: 'V1.0.0.3', force: false},
+    {path: './pianoSynth.js', version: 'V1.0.0.2', force: false },
+    {path: './configUi.js', version: 'V1.0.0.3', force: false },
+    {path: './configOp.js', version: 'V1.0.0.2', force: false },
+    {path: './displayer.js', version: 'V1.0.0.3', force: false },
   ];
 
   console.log('start to load js...');
+  await jsLoader.loadJs('./loadingBox.js', 'V1.0.0.2', false);
+  element = document.getElementById('loadingStaticText');
+  if (element) {
+    element.style.display = 'none';
+  }
+  showLoading('正在下载网页资源中，请耐心等待...');
   for (let i = 0; i < allNeedJsFile.length; i ++) {
-    await jsLoader.loadJs(allNeedJsFile[i].path, allNeedJsFile[i].version);
+    await jsLoader.loadJs(allNeedJsFile[i].path, allNeedJsFile[i].version, allNeedJsFile[i].force);
+    updateLoadingInfo(Math.floor(100 * (i + 1) / allNeedJsFile.length));
+    await new Promise(resolve => setTimeout(resolve, 10));
   }
   console.log('load all js done.');
   document.dispatchEvent(new CustomEvent('ceAllJsLoadDoneEvent', {

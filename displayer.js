@@ -1,4 +1,4 @@
-// @version V1.0.0.2
+// @version V1.0.0.3
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：显示器
@@ -24,7 +24,7 @@ class SimpleDisplay {
     screen.style.cssText = `
       width: ${this.width}px;
       height: ${this.height}px;
-      background: #2020a080;
+      background: #2020a0f0;
       border: 2px solid #0066cc;
       border-radius: 4px;
       position: relative;
@@ -68,7 +68,7 @@ class SimpleDisplay {
       width: 40%;
       height: 100%;
       position: relative;
-      border-right: 1px solid rgba(0, 100, 255, 0.5);
+      border-right: 2px solid rgba(0, 100, 255, 0.5);
     `;
 
     for (let i = 0; i < 5; i++) {
@@ -98,7 +98,7 @@ class SimpleDisplay {
       align-items: center;
       justify-content: left;
       margin-left: 20px;
-      border-right: 1px solid rgba(0, 100, 255, 0.5);
+      border-right: 2px solid rgba(0, 100, 255, 0.5);
     `;
 
     const textArea = document.createElement('div');
