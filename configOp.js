@@ -1,4 +1,4 @@
-// @version V1.0.0.2
+// @version V1.0.0.3
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置参数
@@ -201,13 +201,13 @@ function onAutoPlay() {
 }
 
 function simStopEvent() {
+  showAnsEndInfo();
   const event = new Event('click', {bubbles: true, cancelable: true});
   event.simulated = true;
   const element = document.querySelector(`[name="START_STOP"]`);
   if (element != null) {
     element.dispatchEvent(event);
   }
-  showAnsEndInfo();
 }
 
 function onTestNext(isCorrect) {

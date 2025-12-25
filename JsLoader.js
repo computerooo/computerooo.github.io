@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     {path: './AudioManager.js', version: 'V1.0.0.3', force: false},
     {path: './pianoSynth.js', version: 'V1.0.0.2', force: false },
     {path: './configUi.js', version: 'V1.0.0.3', force: false },
-    {path: './configOp.js', version: 'V1.0.0.2', force: false },
+    {path: './configOp.js', version: 'V1.0.0.3', force: false },
     {path: './displayer.js', version: 'V1.0.0.3', force: false },
   ];
 
