@@ -1,4 +1,4 @@
-// @version V1.0.0.8
+// @version V1.0.0.9
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：合成钢琴音色
@@ -548,7 +548,44 @@ class AudioManager {
     return null;
   }
 
-  async loadAudioRes() {
+  async loadAudioRes(id = null) {
+    if (id != null) {
+      const allOptAudioRes = [
+        {key: 'ans_bD_key', path: './audio/ans_bD_key.mp3', ver: 'V1.0.0.2', force: false },
+        {key: 'ans_D_key', path: './audio/ans_D_key.mp3', ver: 'V1.0.0.2', force: false },
+        {key: 'ans_bE_key', path: './audio/ans_bE_key.mp3', ver: 'V1.0.0.2', force: false },
+        /*
+        {key: 'ans_E_key', path: './audio/ans_E_key.mp3', ver: 'V1.0.0.2', force: false },
+        {key: 'ans_F_key', path: './audio/ans_F_key.mp3', ver: 'V1.0.0.2', force: false },
+        {key: 'ans_bG_key', path: './audio/ans_G_key.mp3', ver: 'V1.0.0.2', force: false },
+        {key: 'ans_G_key', path: './audio/ans_G_key.mp3', ver: 'V1.0.0.2', force: false },
+        {key: 'ans_bA_key', path: './audio/ans_bA_key.mp3', ver: 'V1.0.0.2', force: false },
+        */
+        {key: 'ans_A_key', path: './audio/ans_A_key.mp3', ver: 'V1.0.0.2', force: false },
+        {key: 'ans_bB_key', path: './audio/ans_bB_key.mp3', ver: 'V1.0.0.2', force: false },
+        {key: 'ans_B_key', path: './audio/ans_B_key.mp3', ver: 'V1.0.0.2', force: false },
+      ];
+      for (let i = 0; i < allOptAudioRes.length; i ++) {
+        if (id === allOptAudioRes[i].key) {
+          if (this.cachedAudios[id]) {
+            continue;
+          }
+          this.showProgressDialog();
+          try {
+            this.cachedAudios[id] = await this.checkVersionAndUpdate(allOptAudioRes[i].path,
+                    id, allOptAudioRes[i].ver, allOptAudioRes[i].force);
+            if (this.cachedAudios[id] === null) {
+              this.cachedAudios[id] = {splitPoints: {length: -1}};
+            }
+          } catch (error) {
+            console.error('Audio update failed:', error);
+            this.cachedAudios[id] = null;
+          }
+          this.hideProgressDialog();
+        }
+      }
+    }
+
     if (this.cachedAudios['piano']) {
       return true;
     }
@@ -611,10 +648,10 @@ async function updateAudio(mp3Url, cacheId, version, forceUpdate = false) {
   }
 }
 
-async function loadAudioRes() {
+async function loadAudioRes(id = null) {
   try {
     const manager = await initAudioManager();
-    return await manager.loadAudioRes();
+    return await manager.loadAudioRes(id);
   } catch (error) {
     console.error('Audio update failed:', error);
     throw error;

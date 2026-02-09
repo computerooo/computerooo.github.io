@@ -1,4 +1,4 @@
-// @version V1.0.0.9
+// @version V1.0.1.0
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置参数
@@ -16,6 +16,8 @@ const triadChords = ['', 'm', 'm', '', '', 'm', 'dim'];
 const seventhChords = ['maj7', 'm7', 'm7', 'maj7', '7', 'm7', 'm7b5'];
 const ninthChords = ['maj9', 'm9', 'm7b9', 'maj9', '9', 'm9', 'm7b5b9'];
 const chordDegNames = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+const ansIdNames = ['ans_c_key', 'ans_bD_key', 'ans_D_key', 'ans_bE_key', 'ans_E_key', 'ans_F_key',
+                    'ans_bG_key', 'ans_G_key', 'ans_bA_key', 'ans_A_key', 'ans_bB_key', 'ans_B_key'];
 
 const tipsVol = 0.4;
 
@@ -129,7 +131,7 @@ async function playTipsAns() {
   }
 
   let index = noteToAnsIndex(noteSeqs[noteIndex]);
-  ret = await AudioManagerAPI.playAudioSegment('ans_c_key', index, 1.0);
+  ret = await AudioManagerAPI.playAudioSegment(ansIdNames[mainNote], index, 1.0);
   if (ret) {
     let interval = playInterval;
     if (trainMode.endsWith("interval") || trainMode.endsWith("block_chord")) {
@@ -815,6 +817,7 @@ function onKeySelClick() {
   calAllNotes();
   updateLowSel();
   updateKbNoteNames();
+  AudioManagerAPI.loadAudioRes(ansIdNames[mainNote]);
 }
 
 function onSeqLenSelClick() {

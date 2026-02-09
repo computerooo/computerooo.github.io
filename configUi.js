@@ -1,4 +1,4 @@
-// @version V1.0.0.4
+// @version V1.0.0.5
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置界面
@@ -123,7 +123,7 @@ function configUiLoad() {
         <option value='3'>bE调</option>
         <option value='4'>E调</option>
         <option value='8'>bA调</option>
-        <option value='5'>B调</option>
+        <option value='11'>B调</option>
         <option value='1'>bD调</option>
         <option value='1'>#C调</option>
         <option value='6'>bG调</option>
