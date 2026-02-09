@@ -1,4 +1,4 @@
-// @version V1.0.0.7
+// @version V1.0.0.8
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：合成钢琴音色
@@ -560,7 +560,7 @@ class AudioManager {
       {key: 'voice_001', path: './audio/voice_001.mp3', ver: 'V1.0.0.3', force: false },
       {key: 'voice_002', path: './audio/voice_002.mp3', ver: 'V1.0.0.4', force: false },
       {key: 'voice_003', path: './audio/voice_003.mp3', ver: 'V1.0.0.3', force: false },
-      {key: 'ans_c_key', path: './audio/ans_c_key.mp3', ver: 'V1.0.0.1', force: true },
+      {key: 'ans_c_key', path: './audio/ans_c_key.mp3', ver: 'V1.0.0.2', force: false },
     ];
 
     for (let i = 0; i < allAudioRes.length; i ++) {
