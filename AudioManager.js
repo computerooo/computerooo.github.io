@@ -1,4 +1,4 @@
-// @version V1.0.0.6
+// @version V1.0.0.7
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：合成钢琴音色
@@ -175,13 +175,13 @@ class AudioManager {
     }
   }
 
-  async genSplitPoints(wavData) {
+  async genSplitPoints(cacheId, wavData) {
     return new Promise((resolve, reject) => {
-        resolve(this.genSplitPointsInt(wavData));
+        resolve(this.genSplitPointsInt(cacheId, wavData));
         });
   }
 
-  async genSplitPointsInt(wavData) {
+  async genSplitPointsInt(cacheId, wavData) {
     console.log('start to genSplitPoints...');
     const ch0Data = Array.from(wavData.data.getChannelData(0));
     for (let i = 0; i < wavData.data.length; i ++) {
@@ -207,16 +207,22 @@ class AudioManager {
     let found = false;
     let count = 0;
     let smallLenTh = wavData.data.sampleRate * 0.1;
+    let vadEnTh = 0.05;
+    let vadExTh = 0.01;
+    if (cacheId.startsWith("ans_")) {
+      vadEnTh = 0.001;
+      vadExTh = 0.0002;
+    }
     const splitPoints = [];
     for (let i = 0; i < wavData.data.length; i ++) {
       if (!found) {
-        if (ch0Data[i] > 0.05) {
+        if (ch0Data[i] > vadEnTh) {
           found = true;
           count = 0;
           splitPoints.push(Math.floor(i - 0.02 * wavData.data.sampleRate));
         }
       } else {
-        if (ch0Data[i] < 0.01) {
+        if (ch0Data[i] < vadExTh) {
           count ++;
           if (count > smallLenTh) {
             found = false;
@@ -314,14 +320,14 @@ class AudioManager {
     });
   }
 
-  async processAudio(mp3Data, cSplitPoints) {
+  async processAudio(cacheId, mp3Data, cSplitPoints) {
     try {
       const wavData = await this.decodeMP3ToWAV(mp3Data);
       await new Promise(resolve => setTimeout(resolve, 10));
 
       this.updateProgressInfo(10, '正在处理音频……');
       await new Promise(resolve => setTimeout(resolve, 10));
-      const splitPoints = cSplitPoints ? cSplitPoints : await this.genSplitPoints(wavData);
+      const splitPoints = cSplitPoints ? cSplitPoints : await this.genSplitPoints(cacheId, wavData);
       this.updateProgressInfo(100, '处理音频完成');
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -378,7 +384,7 @@ class AudioManager {
           if (!cacheRet.splitPoints) {
             var mp3Data_ = mp3Data.slice(0);
           }
-          ret = await this.processAudio(mp3Data, cacheRet.splitPoints);
+          ret = await this.processAudio(cacheId, mp3Data, cacheRet.splitPoints);
           if (!cacheRet.splitPoints && ret) {
             await this.cacheMp3ToLocalDb(mp3Data_, cacheId, newVersion, ret);
           }
@@ -393,7 +399,7 @@ class AudioManager {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       if (mp3Data) {
-        const ret = await this.processAudio(mp3Data.buffer.slice(0));
+        const ret = await this.processAudio(cacheId, mp3Data.buffer.slice(0));
         if (ret) {
           this.updateProgressInfo(13, '正在缓存到本地……');
           await new Promise(resolve => setTimeout(resolve, 10));
@@ -523,6 +529,7 @@ class AudioManager {
       return {
         source: source,
         gainNode: gainNode,
+        audioContext: this.audioContext,
         playTime: Math.floor(audioBuffer.length * 1000 / audioBuffer.sampleRate),
         stop: () => {
           try {
@@ -553,6 +560,7 @@ class AudioManager {
       {key: 'voice_001', path: './audio/voice_001.mp3', ver: 'V1.0.0.3', force: false },
       {key: 'voice_002', path: './audio/voice_002.mp3', ver: 'V1.0.0.4', force: false },
       {key: 'voice_003', path: './audio/voice_003.mp3', ver: 'V1.0.0.3', force: false },
+      {key: 'ans_c_key', path: './audio/ans_c_key.mp3', ver: 'V1.0.0.1', force: true },
     ];
 
     for (let i = 0; i < allAudioRes.length; i ++) {

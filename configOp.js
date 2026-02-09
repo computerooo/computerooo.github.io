@@ -1,4 +1,4 @@
-// @version V1.0.0.8
+// @version V1.0.0.9
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置参数
@@ -17,7 +17,7 @@ const seventhChords = ['maj7', 'm7', 'm7', 'maj7', '7', 'm7', 'm7b5'];
 const ninthChords = ['maj9', 'm9', 'm7b9', 'maj9', '9', 'm9', 'm7b5b9'];
 const chordDegNames = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
-const tipsVol = 0.3;
+const tipsVol = 0.4;
 
 function getChordFuncName(sing, nNotes) {
   if (nNotes == 3) {
@@ -95,8 +95,57 @@ async function playTipsError() {
   let id = 'voice_003';
   const cnt = await AudioManagerAPI.getAudioSegmentCnt(id);
   if (cnt > 0) {
-    ret = await AudioManagerAPI.playAudioSegment(id, Math.floor(Math.random() * cnt), tipsVol);
+    ret = await AudioManagerAPI.playAudioSegment(id, Math.floor(Math.random() * cnt), 0.6);
   }
+}
+
+function noteToAnsIndex(note) {
+  let index = 0;
+  for (let i = 0; i < allOptNotes.length; i ++) {
+    if (allOptNotes[i] == note) {
+      return index + i;
+    }
+  }
+  return -1;
+}
+
+/*
+function onVoiceRelease(playCtl, vol) {
+  let ratio = 0.9;
+  if (vol <= 0.001) {
+    return;
+  }
+  playCtl.setVolume(vol);
+  setTimeout(onVoiceRelease, 10, playCtl, vol * ratio);
+}
+*/
+
+async function playTipsAns() {
+  let ret = false;
+  if (noteIndex >= noteSeqs.length) {
+    noteIndex ++;
+    playTimerId = setTimeout(onAutoPlay, 1);
+    return;
+  }
+
+  let index = noteToAnsIndex(noteSeqs[noteIndex]);
+  ret = await AudioManagerAPI.playAudioSegment('ans_c_key', index, 1.0);
+  if (ret) {
+    let interval = playInterval;
+    if (trainMode.endsWith("interval") || trainMode.endsWith("block_chord")) {
+      interval = 230;
+    }
+    let delay = interval / 1.66;
+    if (delay < 110) {
+      delay = 110;
+    }
+    ret.gainNode.gain.setTargetAtTime(0.00001, ret.audioContext.currentTime, delay / 2 / 1000);
+    playTimerId = setTimeout(playTipsAns, interval);
+  } else {
+    playTimerId = setTimeout(onAutoPlay, 1);
+    noteIndex = noteSeqs.length;
+  }
+  noteIndex ++;
 }
 
 async function playTipsNext() {
@@ -124,7 +173,11 @@ async function playTipsNext() {
   if (ret) {
     playTimerId = setTimeout(onAutoPlay, ret.playTime);
   } else {
-    playTimerId = setTimeout(onAutoPlay, playInterval);
+    if (playInterval < 400) {
+      playTimerId = setTimeout(onAutoPlay, 400);
+    } else {
+      playTimerId = setTimeout(onAutoPlay, playInterval);
+    }
   }
 }
 
@@ -195,7 +248,18 @@ function onAutoPlay() {
     piano.cleanHistNoteInfo(true);
     if ((noteIndex == noteSeqs.length) && (seqLen > 1)) {
       noteIndex ++;
-      playTipsThis();
+      if (curTimes == (trainTimes - 1)) {
+        if (trainMode.endsWith("interval") || trainMode.endsWith("block_chord")) {
+          noteIndex = 1;
+        } else {
+          noteIndex = 0;
+        }
+        playTimerId = setTimeout(playTipsAns, playInterval);
+      } else if (curTimes < trainTimes) {
+        playTipsThis();
+      } else {
+        playTimerId = setTimeout(playTipsAns, playInterval);
+      }
       return;
     } else {
       noteIndex = 0;
@@ -277,6 +341,7 @@ var lowSelValue = -1;
 var hiSelValue = -1;
 var refSelValue = -1;
 var shiftValue = 0;
+var timbreValue = 0;
 
 var lowestNote;
 var lowestName;
@@ -868,6 +933,10 @@ function onShiftSelClick() {
   piano.preGenNotes();
 }
 
+function onTimbreSelect() {
+  timbreValue = parseInt(event.target.value, 10);
+}
+
 function calcRefNote() {
   if (refSelValue < 0) {
     refNote = refSelValue;
@@ -917,6 +986,7 @@ const configPairs = [
   {key:'trainTimesSelect', def:'3'},
   {key:'ansTimesSelect', def:'2'},
   {key:'shiftSelect', def:'+1'},
+  {key:'timbreSelect', def:'0'},
 ];
 
 function loadAllConfigs() {

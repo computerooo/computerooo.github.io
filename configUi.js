@@ -1,4 +1,4 @@
-// @version V1.0.0.3
+// @version V1.0.0.4
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置界面
@@ -92,7 +92,7 @@ function configUiLoad() {
   <table>
     <tr class="headers">
       <td>模式</td><td>音阶</td><td>音组</td><td>最低音</td><td>最高音</td><td>参考音</td>
-      <td>速度</td><td>听音</td><td>答案</td><td>八度</td>
+      <td>速度</td><td>听音</td><td>答案</td><td>八度</td><td>音色</td>
       <td rowspan='2'>
         <button onclick="onStartStoplick()" name="START_STOP" id="START_STOP" value="" class="buttons">开始</button>
       </td>
@@ -199,6 +199,11 @@ function configUiLoad() {
         <option value='+2'>+2</option>
         <option value='+3'>+3</option>
         </select>
+      </td>
+      <td>
+        <select class="selects" name="timbreSelect" onchange="onTimbreSelect()">
+        <option value='0'>00</option>
+        <option value='1'>01</option>
       </td>
     </tr>
   </table>
