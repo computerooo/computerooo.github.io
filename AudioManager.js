@@ -1,4 +1,4 @@
-// @version V1.0.0.9
+// @version V1.0.1.0
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：合成钢琴音色
@@ -104,7 +104,14 @@ class AudioManager {
           const mbLoaded = (loadedBytes / 1024 / 1024).toFixed(2);
           const mbTotal = (totalBytes / 1024 / 1024).toFixed(2);
 
-          this.updateProgressInfo(Math.floor(progress), `正在下载资源: ${mbLoaded}MB / ${mbTotal}MB`, true);
+          if (url.endsWith("piano.mp3")) {
+            this.updateProgressInfo(Math.floor(progress),
+                `正在下载资源: ${mbLoaded}MB / ${mbTotal}MB\n`
+                + "(建议关闭浏览器的无痕浏览模式，\n避免每次打开都要重新下载资源)",
+                true);
+          } else {
+            this.updateProgressInfo(Math.floor(progress), `正在下载资源: ${mbLoaded}MB / ${mbTotal}MB`, true);
+          }
         } else {
           this.updateProgressInfo(0, `已下载: ${(loadedBytes / 1024 / 1024).toFixed(2)}MB`, true);
         }
@@ -584,6 +591,7 @@ class AudioManager {
           this.hideProgressDialog();
         }
       }
+      return false;
     }
 
     if (this.cachedAudios['piano']) {
