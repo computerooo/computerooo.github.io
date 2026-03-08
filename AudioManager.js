@@ -1,4 +1,4 @@
-// @version V1.0.1.0
+// @version V1.0.1.1
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：合成钢琴音色
@@ -483,6 +483,16 @@ class AudioManager {
     return -1;
   }
 
+  hasAudioSegment(cacheId, index) {
+    const cachedAudio = this.cachedAudios[cacheId];
+    if (cachedAudio) {
+      if ((index >= 0) && (index < (cachedAudio.splitPoints.length - 1))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   async playAudioSegment(cacheId, index, volume = 1) {
     if (!this.audioContext) {
       return null;
@@ -684,6 +694,11 @@ window.AudioManagerAPI = {
   loadFromCache: async (cacheId, currentVersion) => {
     const manager = await initAudioManager();
     return await manager.loadMp3FromLocalDb(cacheId, currentVersion);
+  },
+
+  hasAudioSegment: async (cacheId, index) => {
+    const manager = await initAudioManager();
+    return manager.hasAudioSegment(cacheId, index);
   },
 
   playAudioSegment: async (cacheId, index, volume) => {

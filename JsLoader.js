@@ -1,4 +1,4 @@
-// @version V1.0.0.1
+// @version V1.0.0.2
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：合成钢琴音色
@@ -115,14 +115,14 @@ class JsLoader {
       const content = await response.text();
 
       var version = '';
-	  if (content.startsWith('// @version ')) {
-	    let offset = '// @version '.length;
-	    for (let i = 0; i < 128; i ++) {
-		  if (content[i + offset] === '\n' || content[i + offset] === '\r') {
-		    break;
-	      }
-		  version += content[i + offset];
-		}
+      if (content.startsWith('// @version ')) {
+        let offset = '// @version '.length;
+        for (let i = 0; i < 128; i ++) {
+          if (content[i + offset] === '\n' || content[i + offset] === '\r') {
+            break;
+          }
+          version += content[i + offset];
+        }
       }
       return {content: content, version: version};
     } catch (error) {
@@ -154,7 +154,7 @@ class JsLoader {
         if (version === null || cached.version === version) {
           console.log(`Loading from cache: ${path}`);
           this.createScriptTag(cached.content, path);
-          return;
+          return true;
         } else {
           console.log(`Version mismatch, update needed: ${path} (cached: ${cached.version}, required: ${version})`);
         }
@@ -162,8 +162,8 @@ class JsLoader {
 
       console.log(`Loading from network: ${path}`);
       const loadRet = await this.fetchJsFromNetwork(path);
-	  const content = loadRet.content;
-	  const fetchedVersion = loadRet.version;
+      const content = loadRet.content;
+      const fetchedVersion = loadRet.version;
       console.log('version = ' + fetchedVersion);
       if (version !== null && fetchedVersion !== null && fetchedVersion !== version) {
         throw new Error(`Version mismatch: file version(${fetchedVersion}) ≠ required version(${version})`);
@@ -197,26 +197,34 @@ const jsLoader = new JsLoader();
 
 document.addEventListener('DOMContentLoaded', async () => {
   allNeedJsFile = [
-    {path: './AudioManager.js', version: 'V1.0.1.0', force: false },
-    {path: './pianoSynth.js', version: 'V1.0.0.6', force: false },
-    {path: './configUi.js', version: 'V1.0.0.5', force: false },
-    {path: './configOp.js', version: 'V1.0.1.0', force: false },
-    {path: './displayer.js', version: 'V1.0.0.3', force: false },
+    {path: './AudioManager.js', version: 'V1.0.1.1', force: false },
+    {path: './pianoSynth.js', version: 'V1.0.0.7', force: false },
+    {path: './configUi.js', version: 'V1.0.0.6', force: false },
+    {path: './configOp.js', version: 'V1.0.1.1', force: false },
+    {path: './displayer.js', version: 'V1.0.0.4', force: false },
   ];
 
   console.log('start to load js...');
-  await jsLoader.loadJs('./loadingBox.js', 'V1.0.0.2', false);
+  await jsLoader.loadJs('./loadingBox.js', 'V1.0.0.3', true);
   element = document.getElementById('loadingStaticText');
   if (element) {
     element.style.display = 'none';
   }
   showLoading('正在下载网页资源中，请耐心等待...');
+  let isUpdated = false;
   for (let i = 0; i < allNeedJsFile.length; i ++) {
-    await jsLoader.loadJs(allNeedJsFile[i].path, allNeedJsFile[i].version, allNeedJsFile[i].force);
+    let ret = await jsLoader.loadJs(allNeedJsFile[i].path, allNeedJsFile[i].version, allNeedJsFile[i].force);
+    if (ret != true) {
+      isUpdated = true;
+    }
     updateLoadingInfo(Math.floor(100 * (i + 1) / allNeedJsFile.length));
     await new Promise(resolve => setTimeout(resolve, 10));
   }
   console.log('load all js done.');
+  if (isUpdated) {
+    updateLoadingInfo(-1, '本次版本有更新，\n请点击“帮助”了解更多信息');
+    await new Promise(resolve => setTimeout(resolve, 1.500));
+  }
   document.dispatchEvent(new CustomEvent('ceAllJsLoadDoneEvent', {
     detail: { message: 'One-line event' }
   }));

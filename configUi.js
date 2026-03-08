@@ -1,4 +1,4 @@
-// @version V1.0.0.5
+// @version V1.0.0.6
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置界面
@@ -83,7 +83,7 @@ function configUiLoad() {
 
   const info = document.createElement('div');
   info.innerHTML = `
-    <h3>🎹钢琴练耳神器（作者：<a href="https://space.bilibili.com/565718633">电脑圈圈</a>  Ⓒ版权所有，仅供爱好者免费使用，严禁用于任何商业用途，否则后果自负）</h3>
+    <h3><img src=./favicon.ico width="32" height="32">钢琴练耳神器（作者：<a href="https://space.bilibili.com/565718633">电脑圈圈</a>  Ⓒ版权所有，仅供爱好者免费使用，严禁用于任何商业用途，否则后果自负）<a href="help.html">帮助</a></h3>
   `;
   document.body.appendChild(info);
 
@@ -91,10 +91,10 @@ function configUiLoad() {
   htmls.innerHTML = `
   <table>
     <tr class="headers">
-      <td>模式</td><td>音阶</td><td>音组</td><td>最低音</td><td>最高音</td><td>参考音</td>
-      <td>速度</td><td>听音</td><td>答案</td><td>八度</td><td>音色</td>
+      <td>模式</td><td>音组</td><td>最低音</td><td>最高音</td><td>参考音</td>
+      <td>速度</td><td>听音</td><td>答案</td><td>八度</td>
       <td rowspan='2'>
-        <button onclick="onStartStoplick()" name="START_STOP" id="START_STOP" value="" class="buttons">开始</button>
+        <button onclick="onStartStopClick()" name="START_STOP" id="START_STOP" value="" class="buttons">开始</button>
       </td>
     </tr>
 
@@ -109,25 +109,7 @@ function configUiLoad() {
         <option value="Test_interval">音程考试</option>
         <option value="Test_broken_chord">分解考试</option>
         <option value="Test_block_chord">柱式考试</option>
-        </select>
-      </td>
-
-      <td>
-        <select class="selects" name="keySelect" onchange="onKeySelClick()">
-        <option value='0' >C调</option>
-        <option value='7'>G调</option>
-        <option value='5'>F调</option>
-        <option value='2'>D调</option>
-        <option value='10'>bB调</option>
-        <option value='9'>A调</option>
-        <option value='3'>bE调</option>
-        <option value='4'>E调</option>
-        <option value='8'>bA调</option>
-        <option value='11'>B调</option>
-        <option value='1'>bD调</option>
-        <option value='1'>#C调</option>
-        <option value='6'>bG调</option>
-        <option value='6'>#F调</option>
+        <option value="Settings_more">更多功能</option>
         </select>
       </td>
 
@@ -138,6 +120,11 @@ function configUiLoad() {
         <option value='3'>三音</option>
         <option value='4'>四音</option>
         <option value='5'>五音</option>
+        <option value='6'>六音</option>
+        <option value='7'>七音</option>
+        <option value='8'>八音</option>
+        <option value='9'>九音</option>
+        <option value='10'>十音</option>
         </select>
       </td>
 
@@ -177,6 +164,11 @@ function configUiLoad() {
         <option value='3'>3次</option>
         <option value='4'>4次</option>
         <option value='5'>5次</option>
+        <option value='6'>6次</option>
+        <option value='7'>7次</option>
+        <option value='8'>8次</option>
+        <option value='9'>9次</option>
+        <option value='10'>10次</option>
         </select>
       </td>
 
@@ -187,6 +179,11 @@ function configUiLoad() {
         <option value='3'>3次</option>
         <option value='4'>4次</option>
         <option value='5'>5次</option>
+        <option value='6'>6次</option>
+        <option value='7'>7次</option>
+        <option value='8'>8次</option>
+        <option value='9'>9次</option>
+        <option value='10'>10次</option>
         </select>
       </td>
 
@@ -200,11 +197,6 @@ function configUiLoad() {
         <option value='+3'>+3</option>
         </select>
       </td>
-      <td>
-        <select class="selects" name="timbreSelect" onchange="onTimbreSelect()">
-        <option value='0'>00</option>
-        <option value='1'>01</option>
-      </td>
     </tr>
   </table>
   <div id="Displayer" class="container"></div>
@@ -214,14 +206,109 @@ function configUiLoad() {
   piano = new PianoSynth();
   piano.createKeyboard();
 
+  const htmlsMore = document.createElement('div');
+  htmlsMore.innerHTML = `
+  <table name = 'MORE_FUNCTIONS' style="display: none;">
+    <tr class="headers">
+      <td>音阶</td><td>难度</td><td>变化音</td><td>语音播报</td><td>音阶播放</td><td>音色</td>
+
+      <td rowspan='2'>
+        <button onclick="onAddUserDefClick()" name="ADD_USE_DEF" id="ADD_USE_DEF" value="" class="buttons">新建</button>
+      </td>
+      <td rowspan='2'>
+        <button onclick="onDelUserDefClick()" name="DEL_USE_DEF" id="DEL_USE_DEF" value="" class="buttons">删除</button>
+      </td>
+      <td rowspan='2'>
+        <button style="display: none;" onclick="onNextUserDefClick()" name="NEXT_USE_DEF" id="NEXT_USE_DEF" value="" class="buttons">下一条</button>
+      </td>
+      <td rowspan='2'>
+        <button style="display: none;" onclick="onDoneUserDefClick()" name="DONE_USE_DEF" id="DONE_USE_DEF" value="" class="buttons">完成</button>
+      </td>
+    </tr>
+
+    <tr class="selects">
+      <td>
+        <select class="selects" name="keySelect" onchange="onKeySelClick()">
+        <option value='0' >C调</option>
+        <option value='7'>G调</option>
+        <option value='5'>F调</option>
+        <option value='2'>D调</option>
+        <option value='10'>bB调</option>
+        <option value='9'>A调</option>
+        <option value='3'>bE调</option>
+        <option value='4'>E调</option>
+        <option value='8'>bA调</option>
+        <option value='11'>B调</option>
+        <option value='1'>bD调</option>
+        <option value='1'>#C调</option>
+        <option value='6'>bG调</option>
+        <option value='6'>#F调</option>
+        <option value='-1'>不限</option>
+        </select>
+      </td>
+
+      <td>
+        <select class="selects" name="difficultySelect" onchange="onDifficultySelClick()">
+        <option value="0">小白</option>
+        <option value="1">入门</option>
+        <option value="2">简单</option>
+        <option value="3">青铜</option>
+        <option value="4">白银</option>
+        <option value="5">黄金</option>
+        <option value="6">铂金</option>
+        <option value="7">钻石</option>
+        <option value="8">大师</option>
+        <option value="9">王者</option>
+        <option value="10">传说</option>
+        <option value="11">地狱</option>
+        </select>
+      </td>
+
+      <td>
+        <select class="selects" name="semitoneSelect" onchange="onSemitoneSelect()">
+        <option value='0'>关闭</option>
+        <option value='1'>打开</option>
+      </td>
+
+      <td>
+        <select class="selects" name="voiceModeSelect" onchange="onVoiceModeSelClick()">
+        <option value="0">关闭</option>
+        <option value="1">一次</option>
+        <option value="2">二次</option>
+        <option value="3">每次</option>
+        </select>
+      </td>
+
+      <td>
+        <select class="selects" name="scalePlaySelect" onchange="onScalePlaySelClick()">
+        <option value="0">默认</option>
+        <option value="1">关闭</option>
+        <option value="2">单音</option>
+        <option value="3">双音</option>
+        <option value="4">开始</option>
+        <option value="5">全部</option>
+        </select>
+      </td>
+
+      <td>
+        <select class="selects" name="timbreSelect" onchange="onTimbreSelect()">
+        <option value='0'>00</option>
+        <option value='1'>01</option>
+      </td>
+
+    </tr>
+  </table>`;
+
+  document.body.appendChild(htmlsMore);
+
   setTimeout(loadAllConfigs, 10);
 }
 
-function customPrompt(message, defaultValue) {
+function customPrompt(message, defaultValue, hideInput = false, hideCancel = false) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;';
   const dialog = document.createElement('div');
-  dialog.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:5px;box-shadow:0 2px 10px rgba(0,0,0,0.2);min-width:300px;z-index:10000;';
+  dialog.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:5px;box-shadow:0 2px 10px rgba(0,0,0,0.2);min-width:300px;z-index:10000;font-size: 30px;';
 
   const msg = document.createElement('div');
   msg.textContent = message || '请输入速度(拍每分):';
@@ -230,18 +317,24 @@ function customPrompt(message, defaultValue) {
   const input = document.createElement('input');
   input.type = 'text';
   input.value = defaultValue || '';
-  input.style.cssText = 'width:100%;padding:8px;margin-bottom:15px;box-sizing:border-box;';
+  input.style.cssText = 'width:100%;padding:8px;margin-bottom:15px;box-sizing:border-box;font-size: 30px;';
+  if (hideInput) {
+    input.style.display = 'none';
+  }
 
   const buttons = document.createElement('div');
   buttons.style.cssText = 'text-align:right;';
 
   const cancelBtn = document.createElement('button');
   cancelBtn.textContent = '取消';
-  cancelBtn.style.cssText = 'margin-right:10px;padding:6px 12px;cursor:pointer;';
+  cancelBtn.style.cssText = 'margin-right:10px;padding:6px 12px;cursor:pointer;font-size: 30px;';
+  if (hideCancel) {
+    cancelBtn.style.display = 'none';
+  }
 
   const okBtn = document.createElement('button');
   okBtn.textContent = '确定';
-  okBtn.style.cssText = 'padding:6px 12px;cursor:pointer;';
+  okBtn.style.cssText = 'padding:6px 12px;cursor:pointer;font-size: 30px;';
 
   buttons.appendChild(cancelBtn);
   buttons.appendChild(okBtn);
@@ -262,7 +355,7 @@ function customPrompt(message, defaultValue) {
 
     const handleCancel = () => {
       cleanup();
-      resolve(defaultValue);
+      resolve('');
     };
 
     const handleKeydown = (e) => {

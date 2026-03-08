@@ -1,16 +1,24 @@
-// @version V1.0.1.0
+// @version V1.0.1.1
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置参数
 //所有版权归作者电脑圈圈所有，仅供爱好者免费使用，严禁用于任何商业用途，否则后果自负
 
 var lastKey = -1;
+var lastKeyAbs = null;
 var needCleanHist = false;
 var correctAnsCnt = 0;
 var curAnsCnt = 0;
 const testTimes = 10;
 var globalInfoText = '';
 var globalInfoTextSize = 30;
+
+var semitoneCfg = 0;
+var difficultyCfg = 3;
+var voiceModeCfg = 1;
+var scalePlayCfg = 0;
+
+var shiftValueWhenStart = null;
 
 const triadChords = ['', 'm', 'm', '', '', 'm', 'dim'];
 const seventhChords = ['maj7', 'm7', 'm7', 'maj7', '7', 'm7', 'm7b5'];
@@ -22,6 +30,9 @@ const ansIdNames = ['ans_c_key', 'ans_bD_key', 'ans_D_key', 'ans_bE_key', 'ans_E
 const tipsVol = 0.4;
 
 function getChordFuncName(sing, nNotes) {
+  if ((mainNote == -1) || (seqLen <= 0)) {
+    return '???';
+  }
   if (nNotes == 3) {
     return triadChords[sing - 1];
   } else if (nNotes == 4) {
@@ -29,11 +40,14 @@ function getChordFuncName(sing, nNotes) {
   } else if (nNotes == 5) {
     return ninthChords[sing - 1];
   } else {
-    return 'unknow';
+    return '???';
   }
 }
 
 function getChordDegName(sing) {
+  if ((mainNote == -1) || (seqLen <= 0)) {
+    return '';
+  }
   return chordDegNames[sing - 1];
 }
 
@@ -67,6 +81,10 @@ async function playTipsThis() {
     need = need && (seqLen >= 3) && (playInterval >= 300) && (trainTimes + ansTimes >= 3);
   }
 
+  if (voiceModeCfg <= 0) {
+    need = false;
+  }
+
   if (need == true) {
     let id = 'voice_000';
     if (!trainMode.endsWith("block_chord")) {
@@ -94,6 +112,9 @@ async function playTipsThis() {
 }
 
 async function playTipsError() {
+  if (voiceModeCfg <= 0) {
+    return;
+  }
   let id = 'voice_003';
   const cnt = await AudioManagerAPI.getAudioSegmentCnt(id);
   if (cnt > 0) {
@@ -111,17 +132,6 @@ function noteToAnsIndex(note) {
   return -1;
 }
 
-/*
-function onVoiceRelease(playCtl, vol) {
-  let ratio = 0.9;
-  if (vol <= 0.001) {
-    return;
-  }
-  playCtl.setVolume(vol);
-  setTimeout(onVoiceRelease, 10, playCtl, vol * ratio);
-}
-*/
-
 async function playTipsAns() {
   let ret = false;
   if (noteIndex >= noteSeqs.length) {
@@ -129,14 +139,29 @@ async function playTipsAns() {
     playTimerId = setTimeout(onAutoPlay, 1);
     return;
   }
+  if ((await AudioManagerAPI.hasAudioSegment(ansIdNames[mainNote < 0 ? 0 : mainNote], 0)) == false) {
+    noteIndex = noteSeqs.length + 1;
+    playTimerId = setTimeout(onAutoPlay, 1);
+    return;
+  }
 
-  let index = noteToAnsIndex(noteSeqs[noteIndex]);
-  ret = await AudioManagerAPI.playAudioSegment(ansIdNames[mainNote], index, 1.0);
-  if (ret) {
-    let interval = playInterval;
-    if (trainMode.endsWith("interval") || trainMode.endsWith("block_chord")) {
-      interval = 230;
+  let index = noteToAnsIndex(adjToKbRange(noteSeqs[noteIndex]));
+  let interval = playInterval;
+  if (trainMode.endsWith("interval") || trainMode.endsWith("block_chord")) {
+    interval = 230;
+  }
+  if (index < 0) {
+    let delay = interval;
+    const ret = await piano.playMIDINote(noteSeqs[noteIndex], 1.5, 0.8);
+    if (ret) {
+      ret.gainNode.gain.setTargetAtTime(0.00001, ret.audioContext.currentTime, delay * 5 / 1000);
     }
+    playTimerId = setTimeout(playTipsAns, interval);
+    noteIndex ++;
+    return;
+  }
+  ret = await AudioManagerAPI.playAudioSegment(ansIdNames[mainNote < 0 ? 0 : mainNote], index, 1.0);
+  if (ret) {
     let delay = interval / 1.66;
     if (delay < 110) {
       delay = 110;
@@ -164,6 +189,10 @@ async function playTipsNext() {
     }
   }
 
+  if (voiceModeCfg <= 0) {
+    need = false;
+  }
+
   if (need === true) {
     let id = 'voice_001';
     const cnt = await AudioManagerAPI.getAudioSegmentCnt(id);
@@ -183,6 +212,52 @@ async function playTipsNext() {
   }
 }
 
+function setShiftToValue(shift) {
+  if (shift <= 0) {
+    setSelectorTo('shiftSelect', shift, true);
+  } else {
+    setSelectorTo('shiftSelect', '+' + shift, true);
+  }
+}
+
+var fullKbMode = false;
+function adjToKbRange(note) {
+  if (!fullKbMode) {
+    return note;
+  }
+  return note - shiftValue;
+}
+
+var allNotesInRange = false;
+function prepareForBestRange() {
+  let bestShift = 0;
+  let bestCnt = 0;
+  let i;
+  let j;
+  let minVal = kbNotes[0].note;
+  let maxVal = kbNotes[kbNotes.length - 1].note;
+
+  for (i = -2; i <= 3; i ++) {
+    let cnt = 0;
+    for (j = 0; j < noteSeqs.length; j ++) {
+      let note = noteSeqs[j];
+      if ((note >= (minVal + i * 12)) && (note <= (maxVal + i * 12))) {
+        cnt ++;
+      }
+    }
+    if (cnt >= bestCnt) {
+      bestCnt = cnt;
+      bestShift = i;
+    }
+  }
+  setShiftToValue(bestShift);
+  if (bestCnt == noteSeqs.length) {
+    allNotesInRange = true;
+  } else {
+    allNotesInRange = false;
+  }
+}
+
 function onAutoPlay() {
   if (needCleanHist == true) {
     piano.cleanHistNoteInfo(true);
@@ -190,15 +265,23 @@ function onAutoPlay() {
   }
   if (lastKey > 0) {
     note = kbNotes[lastKey - kbNotes[0].note];
-    piano.onKeyUp(note, false);
+    piano.onKeyUp(note, false, lastKeyAbs);
     lastKey = -1;
   }
+  if (refSeqs != null) {
+    playRefSeqs();
+    return;
+  }
+  if ((noteIndex == 0) && fullKbMode && trainMode.startsWith("Train")) {
+    prepareForBestRange();
+  }
   if (noteIndex < noteSeqs.length) {
-    lastKey = noteSeqs[noteIndex];
-    if ((lastKey < kbNotes[0].note) || (lastKey > kbNotes[kbNotes.length - 1]) ) {
-      lastKey = -1;
-      return;
+    let absNote = null;
+    if (fullKbMode) {
+      absNote = noteSeqs[noteIndex];
     }
+    lastKeyAbs = absNote;
+    lastKey = adjToKbRange(noteSeqs[noteIndex]);
     note = kbNotes[lastKey - kbNotes[0].note];
 
     if ((noteIndex == (refNote == -2 ? 0 : 1)) && trainMode.endsWith("chord") && trainMode.startsWith("Train")) {
@@ -216,29 +299,33 @@ function onAutoPlay() {
         if (!trainMode.startsWith("Test")) {
           needCleanHist = true;
         }
-        piano.onKeyDown(note, curTimes >= trainTimes, false);
+        piano.onKeyDown(note, curTimes >= trainTimes, false, absNote);
       } else {
         for (let i = 0; i < noteSeqs.length; i ++) {
-          note = kbNotes[noteSeqs[i] - kbNotes[0].note];
+          note = kbNotes[adjToKbRange(noteSeqs[i]) - kbNotes[0].note];
           if (i == 0) {
           } else {
-            piano.onKeyDown(note, curTimes >= trainTimes, false);
+            piano.onKeyDown(note, curTimes >= trainTimes, false, fullKbMode ? noteSeqs[i] : null);
           }
           noteIndex = noteSeqs.length - 1;
         }
       }
     } else {
-      piano.onKeyDown(note, curTimes >= trainTimes, false);
+      piano.onKeyDown(note, curTimes >= trainTimes, false, absNote);
     }
     noteIndex ++;
+    if (seqLen > 0) {
+      shiftValue = cfgShiftValue;
+    }
   } else {
+    piano.allKeysUp();
     if ((trainMode.startsWith("Test")) && (noteIndex >= noteSeqs.length)) {
       playTimerId = setTimeout(onAutoPlay, playInterval);
       noteIndex ++;
       if (noteIndex >= (noteSeqs.length + 1)) {
         for (let i = 0; i < noteSeqs.length; i ++) {
-          note = kbNotes[noteSeqs[i] - kbNotes[0].note];
-          piano.onKeyUp(note, false);
+          note = kbNotes[adjToKbRange(noteSeqs[i]) - kbNotes[0].note];
+          piano.onKeyUp(note, false, noteSeqs[i]);
         }
       }
       if (noteIndex >= (noteSeqs.length + 2)) {
@@ -248,9 +335,29 @@ function onAutoPlay() {
     }
     globalInfoText = "";
     piano.cleanHistNoteInfo(true);
-    if ((noteIndex == noteSeqs.length) && (seqLen > 1)) {
+    if (noteIndex == noteSeqs.length) {
       noteIndex ++;
-      if (curTimes == (trainTimes - 1)) {
+      let needAns = false;
+      if (voiceModeCfg >= 1) {
+        if (curTimes == (trainTimes - 1)) {
+          needAns = true;
+        } else if ((trainTimes == 0) && (curTimes == 0)) {
+          needAns = true;
+        }
+      }
+      if (voiceModeCfg >= 2) {
+        if (curTimes == trainTimes) {
+          needAns = true;
+        } else if ((trainTimes == 0) && (curTimes == 1)) {
+          needAns = true;
+        }
+      }
+      if (voiceModeCfg >= 3) {
+        if (curTimes >= trainTimes) {
+          needAns = true;
+        }
+      }
+      if (needAns) {
         if (trainMode.endsWith("interval") || trainMode.endsWith("block_chord")) {
           noteIndex = 1;
         } else {
@@ -343,6 +450,7 @@ var lowSelValue = -1;
 var hiSelValue = -1;
 var refSelValue = -1;
 var shiftValue = 0;
+var cfgShiftValue = 0;
 var timbreValue = 0;
 
 var lowestNote;
@@ -382,9 +490,17 @@ function myRandom() {
 }
 
 function genOneNote() {
-  var note = Math.floor(Math.random()  * (endNote - startNote) + 0.5) + startNote;
+  let note = Math.floor(Math.random()  * (endNote - startNote) + 0.5) + startNote;
   const res = (note + 12 - mainNote) % 12;
-  var j;
+  let j;
+
+  if (semitoneCfg > 0) {
+    return note;
+  }
+
+  if (mainNote == -1) {
+    return note;
+  }
 
   for (j = 0; j < majSeq.length; j ++) {
     if (majSeq[j] == res) {
@@ -412,6 +528,10 @@ function genOneNote() {
 function getNextNoteOfChord(curNote) {
   let name = noteToSingName(curNote, isFlatKey);
   let next = curNote + 4;
+  if (mainNote == -1) {
+    next -= Math.floor(Math.random() + 0.5);
+    return next;
+  }
   if (name.startsWith('#') || name.startsWith('b')) {
     console.log('error name =' + name);
   } else {
@@ -439,7 +559,7 @@ function genChordInt(seq) {
 }
 
 function genChord() {
-  var seq;
+  let seq;
 
   if (trainMode.endsWith("block_chord")) {
     if (refNote >= 0) {
@@ -465,18 +585,107 @@ function tryFindDiffNote(seq, index) {
   if (noteSeqs == null) {
     seq[index] = genOneNote();
   } else {
-    for (let i = 0; i < 10; i ++) {
+    for (let i = 0; i < 1000; i ++) {
       seq[index] = genOneNote();
-      if (seq[index] != noteSeqs[index]) {
+      if ((seq[index] != noteSeqs[index]) && (Math.abs(seq[index] - noteSeqs[index]) < noteMaxDist)) {
         break;
       }
     }
   }
 }
 
+var refSeqs = null;
+var refSeqIndex = 0;
+function genRefSeqs() {
+  if (refNote <= -2) {
+    refSeqs = null;
+    return;
+  }
+  refSeqIndex = 0;
+  refSeqs = new Int32Array(10);
+  if (refNote < 0) {
+    refSeqs[0] = genOneNote();
+  } else {
+    refSeqs[0] = refNote;
+  }
+  for (let i = 1; i < 8; i ++) {
+    refSeqs[i] = refSeqs[i - 1] + 1;
+    let name = noteToSingName(refSeqs[i], isFlatKey);
+    if (name.startsWith('#') || name.startsWith('b')) {
+      refSeqs[i] ++;
+    }
+  }
+  if (refSeqs[refSeqs.length - 3] > 109) {
+    refSeqs = null;
+    return;
+  }
+  refSeqs[refSeqs.length - 1] = refSeqs[0];
+  refSeqs[refSeqs.length - 2] = refSeqs[0];
+}
+
+async function playRefSeqs() {
+  let refInterval = playInterval / 2;
+  let delay = refInterval;
+  const ret = await piano.playMIDINote(refSeqs[refSeqIndex] + (fullKbMode ? 0 : shiftValue), 1.5, 0.8);
+  if (ret) {
+    ret.gainNode.gain.setTargetAtTime(0.00001, ret.audioContext.currentTime, delay * 5 / 1000);
+  }
+  refSeqIndex ++;
+  if (refSeqIndex == refSeqs.length - 1) {
+    playTimerId = setTimeout(onAutoPlay, refInterval * 4);
+    return;
+  }
+  if (refSeqIndex >= refSeqs.length) {
+    refSeqs = null;
+    refSeqIndex = 0;
+    playTimerId = setTimeout(onAutoPlay, refInterval * 4);
+    return;
+  }
+  playTimerId = setTimeout(onAutoPlay, refInterval);
+}
+
+var lastIdx = -1;
 function genNoteSeqs() {
   let seqLenAct = seqLen;
   noteIndex = 0;
+
+  if (scalePlayCfg >= 5) {
+    genRefSeqs();
+  }
+
+  if (seqLen <= 0) {
+    let group = userDefGroups[0 - seqLen];
+    let idx = Math.floor(Math.random() * group.value.length);
+    while ((lastIdx == idx) && (group.value.length > 1)) {
+      idx = Math.floor(Math.random() * group.value.length);
+    }
+    lastIdx = idx;
+    let userDefSeq = group.value[idx];
+    seqLenAct = userDefSeq.length;
+    if (trainMode.endsWith("interval")) {
+      if (seqLenAct > 1) {
+        seqLenAct = 3;
+      } else {
+        seqLenAct = 2;
+      }
+    } else if (trainMode.endsWith("block_chord")) {
+      seqLenAct ++;
+    } else if (refNote == -2) {
+      return userDefSeq;
+    } else {
+      seqLenAct ++;
+    }
+    const addRefSeq = new Int32Array(seqLenAct);
+    if (refNote <= -1) {
+      tryFindDiffNote(addRefSeq, 0);
+    } else {
+      addRefSeq[0] = refNote;
+    }
+    for (let i = 1; i < seqLenAct; i ++) {
+      addRefSeq[i] = userDefSeq[i - 1];
+    }
+    return addRefSeq;
+  }
 
   if (trainMode.endsWith("chord")) {
     return genChord();
@@ -494,6 +703,23 @@ function genNoteSeqs() {
     seq[0] = refNote;
   }
 
+  let needRefSeq = false;
+  if ((scalePlayCfg == 0) || (scalePlayCfg >= 2)) {
+    if (((seqLenAct == 1) && (scalePlayCfg != 4)) || ((scalePlayCfg == 3) && (seqLenAct == 2)) && (refNote > 0) && trainMode.endsWith("single")) {
+      needRefSeq = true;
+    }
+  }
+  if (scalePlayCfg == 5){
+    needRefSeq = true;
+  }
+  if (scalePlayCfg == 1) {
+    needRefSeq = false;
+  }
+  if (needRefSeq) {
+    genRefSeqs();
+  }
+
+  let tryCnt = 0;
   for (let i = 1; i < seqLenAct; i ++) {
     if ((i == 1) && (seqLen == 2) && trainMode.endsWith("interval")) {
         seq[1] = seq[0]; // the ref note
@@ -522,6 +748,21 @@ function genNoteSeqs() {
         break;
       }
     }
+    if (i == 1) {
+      if ((seq[0] < (startNote - noteMaxDist)) || (seq[0] > (endNote + noteMaxDist))) {
+        continue;
+      }
+    }
+    if (Math.abs(seq[i] - seq[i - 1]) > noteMaxDist) {
+      tryCnt ++;
+      if (tryCnt > 100000) {
+        tryCnt = 0;
+      } else {
+        i --;
+      }
+    } else {
+      tryCnt = 0;
+    }
   }
 
   return seq;
@@ -534,7 +775,7 @@ function stopPlay() {
   }
   if (lastKey > 0) {
     note = kbNotes[lastKey - kbNotes[0].note];
-    piano.onKeyUp(note, false);
+    piano.onKeyUp(note, false, lastKeyAbs);
     lastKey = -1;
   }
   if (trainMode.startsWith("Train")) {
@@ -546,15 +787,27 @@ function stopPlay() {
 
 function onModeSelClick() {
   trainMode = event.target.value;
+  if (trainMode === 'Settings_more') {
+    onMoreFunctions(true);
+    return;
+  } else {
+    onMoreFunctions(false);
+  }
   disableUi(false);
   updateSeqLenSel();
 }
 
 function calLowest() {
-  var note = kbNotes[0].note;
+  let note = kbNotes[0].note;
   const res = (note + 12 - mainNote) % 12;
-  var rel;
-  var j;
+  let rel;
+  let j;
+
+  if (mainNote == -1) {
+    lowestNote = note;
+    lowestName = 6;
+    return;
+  }
 
   for (j = 0; j < majSeq.length; j ++) {
     if (majSeq[j] >= res) {
@@ -571,10 +824,16 @@ function calLowest() {
 }
 
 function calHiest() {
-  var note = kbNotes[kbNotes.length - 1].note;
+  let note = kbNotes[kbNotes.length - 1].note;
   const res = (note + 12 - mainNote) % 12;
-  var rel;
-  var j;
+  let rel;
+  let j;
+
+  if (mainNote == -1) {
+    hiestNote = note;
+    hiestName = 1;
+    return;
+  }
 
   for (j = majSeq.length - 1; j >= 0; j --) {
     if (majSeq[j] <= res) {
@@ -591,10 +850,10 @@ function calHiest() {
 }
 
 function calAllNotes() {
-  var i;
-  var cnt = 1;
-  var name = lowestName;
-  var group = 0;
+  let i;
+  let cnt = 1;
+  let name = lowestName;
+  let group = 0;
 
   for (i = lowestNote + 1; i <= hiestNote; i ++) {
     if (name != 3 && name != 7) {
@@ -604,7 +863,6 @@ function calAllNotes() {
     name = (name - 1) % 7 + 1;
     cnt ++;
   }
-
 
   name = lowestName;
   allOptNames = new Array(cnt);
@@ -653,6 +911,11 @@ function updateLowSel() {
     selectElement.appendChild(optionElement);
   }
 
+  const optionElement = document.createElement('option');
+  optionElement.value = -1;
+  optionElement.textContent = "不限";
+  selectElement.appendChild(optionElement);
+
   if (lastIndex < selectElement.options.length) {
     selectElement.selectedIndex = lastIndex;
   } else {
@@ -664,19 +927,28 @@ function updateLowSel() {
 
 function updateSeqLenSel() {
   const seqLenOpts = [
-    '单音', '双音', '三音', '四音', '五音',
+    '单音', '双音', '三音', '四音', '五音', '六音', '七音', '八音', '九音', '十音'
   ];
   let start = 0;
   let end = seqLenOpts.length;
   if (trainMode.endsWith('interval')) {
     start = 1;
-	end = 3;
+    end = 3;
   } else if (trainMode.endsWith('chord')) {
     start = 2;
+    end = 5;
   }
   const selectElement = document.querySelector('[name="seqLenSelect"]');
   let lastIndex = selectElement.selectedIndex;
   selectElement.innerHTML = '';
+  if (userDefGroups.length > 0) {
+    for (let i = 0; i < userDefGroups.length; i ++) {
+      const optionElement = document.createElement('option');
+      optionElement.value = 0 - i;
+      optionElement.textContent = userDefGroups[i].name;
+      selectElement.appendChild(optionElement);
+    }
+  }
   for (let i = start; i < end; i ++) {
     const optionElement = document.createElement('option');
     optionElement.value = i + 1;
@@ -706,7 +978,7 @@ function updateRefSel() {
     optionElement.textContent = allOptNames[i];
     selectElement.appendChild(optionElement);
   }
-  var optionElement = document.createElement('option');
+  let optionElement = document.createElement('option');
   optionElement.value = -1;
   optionElement.textContent = "随机";
   selectElement.appendChild(optionElement);
@@ -731,6 +1003,9 @@ function updateRefSel() {
 
 function getHiKeepCnt() {
   let hiKeep = 0;
+  if (seqLen <= 0) {
+    return 0;
+  }
   if (trainMode.endsWith('chord')) {
     hiKeep = (seqLen - 1) * 2;
   }
@@ -752,6 +1027,11 @@ function updateHiSel() {
     selectElement.appendChild(optionElement);
   }
 
+  const optionElement = document.createElement('option');
+  optionElement.value = -1;
+  optionElement.textContent = "不限";
+  selectElement.appendChild(optionElement);
+
   if (lastIndex < selectElement.options.length) {
     selectElement.selectedIndex = lastIndex;
   } else {
@@ -759,6 +1039,11 @@ function updateHiSel() {
   }
 
   hiSelValue = parseInt(selectElement.value, 10);
+
+  fullKbMode = false;
+  if ((lowSelValue < 0) || (hiSelValue < 0)) {
+    fullKbMode = true;
+  }
 
   updateRefSel();
 
@@ -777,9 +1062,12 @@ const singNames = [" 1 ", "#1 ", " 2 ", "#2 ", " 3 ", " 4 ", "#4 ", " 5 ", "#5 "
 const singNamesFlat = [" 1 ", "b2 ", " 2 ", "b3 ", " 3 ", " 4 ", "b5 ", " 5 ", "b6 ", " 6 ", "b7 ", " 7 "];
 
 function noteToSingName(note, flat) {
-    const res = (note + 12 - mainNote) % 12;
-    return name = flat ? singNamesFlat[res] : singNames[res];
+  if (mainNote == -1) {
+    return singNames[note % 12];
   }
+  const res = (note + 12 - mainNote) % 12;
+  return name = flat ? singNamesFlat[res] : singNames[res];
+}
 
 function updateKbNoteNames() {
   for (let i = 0; i < kbNotes.length; i ++) {
@@ -817,11 +1105,25 @@ function onKeySelClick() {
   calAllNotes();
   updateLowSel();
   updateKbNoteNames();
-  AudioManagerAPI.loadAudioRes(ansIdNames[mainNote]);
+  AudioManagerAPI.loadAudioRes(ansIdNames[mainNote < 0 ? 0 : mainNote]);
+}
+
+function onUseDefSeqMode(en) {
+  enElementsByName('lowSelect', !en);
+  enElementsByName('hiSelect', !en);
+  if (en) {
+    setSelectorTo('lowSelect', -1);
+    setSelectorTo('hiSelect', -1);
+  }
 }
 
 function onSeqLenSelClick() {
   seqLen = parseInt(event.target.value, 10);
+  if (seqLen <= 0) {
+    onUseDefSeqMode(true);
+    return;
+  }
+  onUseDefSeqMode(false);
   if (trainMode.endsWith("interval")) {
     if (seqLen < 2) {
       seqLen = 2;
@@ -845,16 +1147,17 @@ async function onSpeedSelClick() {
   if (playInterval < 0) {
     if (!event.simulated) {
       let speed = await customPrompt('请输入速度(拍每分):', '' + userDefSpeed);
-      if (speed >= 30 && speed <= 600) {
+      if (speed === '') {
+        return;
+      } else if (speed >= 30 && speed <= 600) {
         userDefSpeed = speed;
-	  } else if (speed < 30) {
+      } else if (speed < 30) {
         userDefSpeed = 30;
       } else if (speed > 600) {
         userDefSpeed = 600;
       }
     }
     playInterval = 60000 / userDefSpeed;
-    console.log('speed = ' + userDefSpeed + ', playInterval = ' + playInterval);
     globalInfoText = "当前速度为\n" + userDefSpeed + '拍每分';
     piano.cleanHistNoteInfo(true);
   }
@@ -864,18 +1167,39 @@ function updateStartEndIndicator() {
   if (typeof lowSelValue !== 'number' || typeof hiSelValue !== 'number') {
     return;
   }
-  if (lowSelValue < 0 || hiSelValue < 0) {
-    return;
-  }
   if (isNaN(lowSelValue) || isNaN(hiSelValue)) {
     return;
   }
   const startEndIndicator = document.querySelector(`[id='startEndIndicator']`);
   if (startEndIndicator != null) {
-    const startNote = allOptNotes[lowSelValue];
-    const endNote = allOptNotes[hiSelValue];
-    var note = kbNotes[startNote - kbNotes[0].note];
-    var keyElement = document.querySelector(`[data-note="${note.name}"]`);
+    let startNote = allOptNotes[lowSelValue];
+    if (lowSelValue < 0) {
+      startNote = kbNotes[0].note;
+    }
+    let endNote = allOptNotes[hiSelValue];
+    if (hiSelValue < 0) {
+      endNote = kbNotes[kbNotes.length - 1].note;
+      if ((lowSelValue >= 0) && (shiftValueWhenStart != null)) {
+        startNote -= shiftValue - shiftValueWhenStart;
+        if (startNote < kbNotes[0].note) {
+          startNote = kbNotes[0].note;
+        }
+      }
+    } else {
+      if (fullKbMode && (shiftValueWhenStart != null)) {
+        endNote -= shiftValue - shiftValueWhenStart;
+        if (endNote > kbNotes[kbNotes.length - 1].note) {
+          endNote = kbNotes[kbNotes.length - 1].note;
+        }
+      }
+    }
+    if ((startNote > kbNotes[kbNotes.length - 1].note) || (endNote < kbNotes[0].note)) {
+      startEndIndicator.style.display = 'none';
+      return;
+    }
+    startEndIndicator.style.display = 'block';
+    let note = kbNotes[startNote - kbNotes[0].note];
+    let keyElement = document.querySelector(`[data-note="${note.name}"]`);
     startEndIndicator.style.left = keyElement.style.left;
     note = kbNotes[endNote - kbNotes[0].note];
     keyElement = document.querySelector(`[data-note="${note.name}"]`);
@@ -900,9 +1224,16 @@ function updateRefIndicator() {
     return;
   }
   if (refIndicator != null) {
-    const refNote = allOptNotes[refSelValue];
-    var note = kbNotes[refNote - kbNotes[0].note];
-    var keyElement = document.querySelector(`[data-note="${note.name}"]`);
+    let refNote = allOptNotes[refSelValue];
+    if (fullKbMode && shiftValueWhenStart != null) {
+      refNote -= shiftValue - shiftValueWhenStart;
+    }
+    let note = kbNotes[refNote - kbNotes[0].note];
+    if ((refNote < kbNotes[0].note) || (refNote > kbNotes[kbNotes.length - 1].note)) {
+      refIndicator.style.display = 'none';
+      return;
+    }
+    let keyElement = document.querySelector(`[data-note="${note.name}"]`);
     refIndicator.style.left = keyElement.style.left;
     refIndicator.style.width = (parseFloat(keyElement.style.left)
         + parseFloat(keyElement.style.width)
@@ -918,6 +1249,10 @@ function onLowSelClick() {
 
 function onHiSelClick() {
   hiSelValue = parseInt(event.target.value, 10);
+  fullKbMode = false;
+  if ((lowSelValue < 0) || (hiSelValue < 0)) {
+    fullKbMode = true;
+  }
   updateRefSel();
   updateStartEndIndicator();
 }
@@ -932,8 +1267,11 @@ function onAnsTimesSelClick() {
 
 function onShiftSelClick() {
   shiftValue = parseInt(event.target.value, 10) * 12;
+  cfgShiftValue = shiftValue;
   updateKbNoteNames();
+  updateRefIndicator();
   piano.preGenNotes();
+  updateStartEndIndicator();
 }
 
 function onTimbreSelect() {
@@ -945,10 +1283,14 @@ function calcRefNote() {
     refNote = refSelValue;
   } else {
     refNote = allOptNotes[refSelValue];
+    if (fullKbMode) {
+      refNote += shiftValue;
+    }
   }
 }
 
-function onStartStoplick() {
+function onStartStopClick() {
+  refSeqs = null;
   if (event.target.innerHTML === '开始') {
     const selectElement = document.querySelector(`[name="seqLenSelect"]`);
     if (selectElement != null) {
@@ -958,8 +1300,26 @@ function onStartStoplick() {
     globalInfoText = "";
     saveAllConfigs();
     event.target.innerHTML = '停止';
-    startNote = allOptNotes[lowSelValue];
-    endNote = allOptNotes[hiSelValue];
+    if (lowSelValue < 0) {
+      startNote = 21;
+    } else {
+      startNote = allOptNotes[lowSelValue];
+      if (fullKbMode) {
+        startNote += shiftValue;
+      }
+    }
+    if (hiSelValue < 0) {
+      endNote = 108;
+      if (trainMode.endsWith('chord')) {
+        endNote -= seqLen * 2 + 1;
+      }
+    } else {
+      endNote = allOptNotes[hiSelValue];
+      if (fullKbMode) {
+        endNote += shiftValue;
+      }
+    }
+    shiftValueWhenStart = shiftValue;
     calcRefNote();
     noteSeqs = genNoteSeqs();
     if (trainMode.startsWith("Test")) {
@@ -969,11 +1329,20 @@ function onStartStoplick() {
     }
     curTimes = 0;
     piano.cleanHistNoteInfo(true);
+    if ((scalePlayCfg == 0) || (scalePlayCfg >= 4)) {
+      genRefSeqs();
+    }
     playTimerId = setTimeout(onAutoPlay, 100);
   } else {
+    if (shiftValueWhenStart != null) {
+      setShiftToValue(shiftValueWhenStart / 12);
+    }
+    shiftValueWhenStart = null;
+    updateStartEndIndicator();
     event.target.innerHTML = '开始';
     stopPlay();
     disableUi(false);
+    onUseDefSeqMode(seqLen <= 0);
   }
 }
 
@@ -982,6 +1351,7 @@ const configPairs = [
   {key:'keySelect', def:'0'},
   {key:"modeSelect", def:'Train_single'},
   {key:'seqLenSelect', def:'3'},
+  {key:'difficultySelect', def:'3'},
   {key:'lowSelect', def:'4'},
   {key:'hiSelect', def:'7'},
   {key:'refSelect', def:'7'},
@@ -990,9 +1360,21 @@ const configPairs = [
   {key:'ansTimesSelect', def:'2'},
   {key:'shiftSelect', def:'+1'},
   {key:'timbreSelect', def:'0'},
+  {key:'semitoneSelect', def:'0'},
+  {key:'voiceModeSelect', def:'1'},
+  {key:'scalePlaySelect', def:'1'},
 ];
 
 function loadAllConfigs() {
+  userDefGroups = loadConfigFromLocal('userDefGroups', userDefGroups);
+  userDefGroups = userDefGroups.map(group => ({
+    name: group.name,
+    value: group.value.map(obj => {
+      const arr = Object.values(obj);
+      return new Int32Array(arr);
+    })
+  }));
+
   const event = new Event('change', {bubbles: true, cancelable: true});
 
   event.simulated = true;
@@ -1079,9 +1461,213 @@ function disableUi(disabledReq) {
         disabled = false;
       }
     }
+    if (seqLen <= 0) {
+      if ((key === 'lowSelect') || (key === 'hiSelect')) {
+        disabled = true;
+      }
+    }
     const selectElement = document.querySelector(`[name="${key}"]`);
     if (selectElement != null) {
       selectElement.disabled = disabled;
     }
+  }
+  if (fullKbMode && disabledReq && !trainMode.startsWith("Test")) {
+    enElementsByName('shiftSelect', false);
+  } else {
+    enElementsByName('shiftSelect', true);
+  }
+}
+
+function onSemitoneSelect() {
+  semitoneCfg = parseInt(event.target.value, 10);
+}
+
+function setSelectorTo(name, value, de = true) {
+  const event = new Event('change', {bubbles: true, cancelable: true});
+  const selectElement = document.querySelector(`[name="${name}"]`);
+  if (selectElement != null) {
+    selectElement.value = value;
+    if (de) {
+      selectElement.dispatchEvent(event);
+    }
+  }
+}
+
+function onDifficultySelClick() {
+  let cfgsTab = [
+    {low:6, hi:8, sem:0, dist:3}, // 0
+    {low:6, hi:9, sem:0, dist:4}, // 1
+    {low:5, hi:10, sem:0, dist:5}, // 2
+    {low:4, hi:11, sem:0, dist:7}, // 3
+    {low:3, hi:12, sem:0, dist:9}, // 4
+    {low:2, hi:13, sem:0, dist:12}, // 5
+    {low:1, hi:14, sem:0, dist:18}, // 6
+    {low:0, hi:-1, sem:0, dist:24}, // 7
+    {low:-1, hi:-1, sem:0, dist:36}, //8
+    {low:-1, hi:-1, sem:0, dist:48}, //9
+    {low:-1, hi:-1, sem:0, dist:60}, // 10
+    {low:-1, hi:-1, sem:1, dist:128}, // 11
+  ];
+
+  difficultyCfg = parseInt(event.target.value, 10);
+  setSelectorTo('lowSelect', '' + cfgsTab[difficultyCfg].low);
+  setSelectorTo('hiSelect', '' + cfgsTab[difficultyCfg].hi);
+  setSelectorTo('semitoneSelect', '' + cfgsTab[difficultyCfg].sem);
+  setSelectorTo('shiftSelect', '' + 0);
+  noteMaxDist = cfgsTab[difficultyCfg].dist;
+}
+
+function onVoiceModeSelClick() {
+  voiceModeCfg = parseInt(event.target.value, 10);
+}
+
+function onScalePlaySelClick() {
+  scalePlayCfg = parseInt(event.target.value, 10);
+}
+
+function showElementsByName(name, show) {
+  let es = document.getElementsByName([name = name]);
+  es.forEach(e => {
+    e.style.display = show ? 'block' : 'none';
+  });
+}
+
+function enElementsByName(name, en) {
+  let es = document.getElementsByName([name = name]);
+  es.forEach(e => {
+    e.disabled = !en;
+  });
+}
+
+function showAddUserBts(show) {
+  showElementsByName('ADD_USE_DEF', show);
+  showElementsByName('DEL_USE_DEF', show && (userDefGroups.length > 0));
+  showElementsByName('NEXT_USE_DEF', !show);
+  showElementsByName('DONE_USE_DEF', !show);
+  setSelectorTo('shiftSelect', '0');
+}
+
+var userDefGroups = [];
+
+function saveUserDefGroups() {
+  saveConfigToLocal('userDefGroups', userDefGroups);
+}
+
+async function onDelUserDefClick() {
+  let mySelf = event.target;
+  let groupName = '';
+  let title = '请输入要删除的自定义音组名：';
+  let nGroups = userDefGroups.length;
+  let defVal = '自定义' + (nGroups - 1);
+  let curIndex = 0;
+
+  if (seqLen <= 0) {
+    curIndex = 0 - seqLen;
+  }
+
+  if (userDefGroups.length <= 0) {
+    mySelf.style.display = 'none';
+    return;
+  }
+
+  defVal = userDefGroups[curIndex].name;
+
+  groupName = await customPrompt(title, defVal);
+  if (groupName === '') {
+    return;
+  }
+  let i = 0;
+  for (i = 0; i < nGroups; i ++) {
+    let group = userDefGroups[i];
+    if (group && (group.name === groupName)) {
+      let cfm = await customPrompt('确认删除“' + groupName + '”么？', "Y", true);
+      if (cfm === 'Y') {
+        userDefGroups.splice(i, 1);
+      } else {
+        return;
+      }
+      break;
+    }
+  }
+
+  if (i >= nGroups) {
+    await customPrompt('删除失败，没有找到“' + groupName + '”', '', true, true);
+  }
+
+  if (userDefGroups.length <= 0) {
+    mySelf.style.display = 'none';
+  }
+
+  updateSeqLenSel();
+  saveUserDefGroups();
+}
+
+async function onAddUserDefClick() {
+  let groupName = '';
+  let title = '请输入自定义音组名：';
+  let curIndex = userDefGroups.length;
+  let defVal = '自定义' + curIndex;
+
+  while (true) {
+    groupName = await customPrompt(title, defVal);
+    if (groupName === '') {
+      return;
+    }
+    let found = false;
+    for (let i = 0; i < curIndex; i ++) {
+      let group = userDefGroups[i];
+      if (group && (group.name === groupName)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      break;
+    }
+    title = '该组已存在，请重新输入音组名：';
+  }
+
+  userDefGroups.push({name: groupName, value: []});
+  piano.kbInputMode = 1;
+  showAddUserBts(false);
+}
+
+function onNextUserDefClick() {
+  if (piano.curInputIndex <= 0) {
+    return;
+  }
+
+  let curIndex = userDefGroups.length - 1;
+  let curNotes = new Int32Array(piano.curInputIndex);
+  for (let i = 0; i < piano.curInputIndex; i ++) {
+    curNotes[i] = piano.actNotes[i];
+  }
+  userDefGroups[curIndex].value.push(curNotes);
+  piano.cleanHistNoteInfo();
+}
+
+function onDoneUserDefClick() {
+  onNextUserDefClick();
+  piano.kbInputMode = 0;
+  let curIndex = userDefGroups.length - 1;
+  if (curIndex >= 0) {
+    if (userDefGroups[curIndex].value.length <= 0) {
+      userDefGroups.pop();
+    }
+  }
+  showAddUserBts(true);
+  showElementsByName("DEL_USE_DEF", true);
+  piano.kbInputMode = 0;
+  updateSeqLenSel();
+  saveUserDefGroups();
+}
+
+function onMoreFunctions(en) {
+  showElementsByName('MORE_FUNCTIONS', en);
+  showElementsByName("START_STOP", !en);
+  if (userDefGroups.length <= 0) {
+    showElementsByName("DEL_USE_DEF", false);
+  } else {
+    showElementsByName("DEL_USE_DEF", true);
   }
 }

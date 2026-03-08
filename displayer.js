@@ -1,4 +1,4 @@
-// @version V1.0.0.3
+// @version V1.0.0.4
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：显示器
@@ -237,9 +237,17 @@ class SimpleDisplay {
     const num = document.createElement('div');
 
     num.textContent = noteNames + '\n' + displayText;
+    let textFontSize = 36;
+    if (num.textContent.length >= 60) {
+      textFontSize = 25;
+    } else if (num.textContent.length >= 54) {
+      textFontSize = 28;
+    } else if (num.textContent.length >= 48) {
+      textFontSize = 32;
+    }
     num.style.cssText = `
       color: #ff9900;
-      font-size: 36px;
+      font-size: ${textFontSize}px;
       white-space: pre-wrap;
       text-align: left !important;
       font-family: monospace;

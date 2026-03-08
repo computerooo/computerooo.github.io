@@ -1,4 +1,4 @@
-// @version V1.0.0.6
+// @version V1.0.0.7
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：合成钢琴音色
@@ -10,8 +10,9 @@ class PianoSynth {
     this.sampleRate = this.audioContext.sampleRate;
     this.stringBuffers = new Map();
     this.vibrateState = 0.3;
-    this.maxDispNotes = 10;
+    this.maxDispNotes = 11;
     this.dispNotes = new Int32Array(this.maxDispNotes);
+    this.actNotes = new Int32Array(this.maxDispNotes);
     this.noteColors = new Int32Array(this.maxDispNotes);
     this.dispNames = '';
     this.curInputIndex = 0;
@@ -21,6 +22,11 @@ class PianoSynth {
     this.preGenIndex = 0;
     this.preGenedLow = 1000;
     this.preGenedHi = 0;
+    this.kbInputMode = 0;
+    this.allKeysCtl = new Array(128);
+    for (let i = 0; i < this.allKeysCtl.length; i ++) {
+      this.allKeysCtl[i] = {"curPlayCtl": null};
+    }
   }
 
   setAnsNotes(ansNotes) {
@@ -462,6 +468,9 @@ class PianoSynth {
   }
 
   async playMIDINote(midiNote, duration = 1.5, velocity = 0.9) {
+    if ((midiNote < 21) || (midiNote >= 89 + 21)) {
+      return null;
+    }
     if (timbreValue == 0) {
       const ret = await AudioManagerAPI.playAudioSegment('piano', midiNote - 21, velocity);
       if (ret) {
@@ -534,30 +543,43 @@ class PianoSynth {
     return blackKeyCount;
   }
 
-  async onKeyDown(note, showAns = true, byUser = true) {
+  async onKeyDown(note, showAns = true, byUser = true, absNote = null) {
     let noteColors = null;
-    if (note == undefined) {
-      return;
-    }
     if ((playTimerId != -1) && (trainMode.startsWith("Train")) && (byUser == true)) {
       return;
     }
     if ((this.ansNotes != null) && ((this.curInputIndex >= this.ansNotes.length) || !byUser)) {
       showAns = false;
     }
-    const keyElement = document.querySelector(`[data-note="${note.name}"]`);
+    let keyElement = null;
+    if (note) {
+      keyElement = document.querySelector(`[data-note="${note.name}"]`);
+    }
+    let actNote = null;
+    if (absNote != null) {
+      actNote = absNote;
+    } else if (note) {
+      actNote = note.note + shiftValue;
+    }
     if (showAns) {
-      this.dispNotes[this.curInputIndex] = note.note;
+      let ansNote = null;
+      if (fullKbMode) {
+        ansNote = actNote;
+      } else if (note) {
+        ansNote = note.note;
+      }
+      this.dispNotes[this.curInputIndex] = note ? note.note : actNote - shiftValue;
+      this.actNotes[this.curInputIndex] = actNote;
       if (this.ansNotes != null) {
         if (trainMode == 'Test_interval') {
-          if (((note.note == this.ansNotes[1]) || (note.note == this.ansNotes[2])) &&
-              ((this.curInputIndex == 1) || (this.dispNotes[1] != note.note || this.ansNotes[1] == this.ansNotes[2]))) {
+          if (((ansNote == this.ansNotes[1]) || (ansNote == this.ansNotes[2])) &&
+              ((this.curInputIndex == 1) || (this.ansNotes[1] != ansNote || this.ansNotes[1] == this.ansNotes[2]))) {
             this.noteColors[this.curInputIndex] = 0xFF99FF00;
           } else {
             this.noteColors[this.curInputIndex] = 0xFFFF0000;
             playTipsError();
           }
-        } else if (this.ansNotes[this.curInputIndex] == note.note) {
+        } else if (this.ansNotes[this.curInputIndex] == ansNote) {
           this.noteColors[this.curInputIndex] = 0xFF99FF00;
         } else {
           this.noteColors[this.curInputIndex] = 0xFFFF0000;
@@ -565,12 +587,12 @@ class PianoSynth {
         }
         noteColors = this.noteColors;
       }
-      const freq = this.midiToFrequency(note.note + shiftValue);
+      const freq = this.midiToFrequency(actNote);
       if (showAns && ((trainMode == "Train_single") || (playTimerId == -1))) {
         globalInfoText = freq.toFixed(1) + 'Hz';
         globalInfoTextSize = 30;
       }
-      this.dispNames += noteToSingName(note.note, isFlatKey);
+      this.dispNames += noteToSingName(actNote, isFlatKey);
       window.Display.showNotes(this.dispNotes, noteColors, this.dispNames, isFlatKey, this.skipAnsCnt);
       this.curInputIndex ++;
       if (this.curInputIndex >= this.maxDispNotes) {
@@ -579,8 +601,9 @@ class PianoSynth {
       if (keyElement) {
         keyElement.style.background = note.color === 'white' ? '#e0e0e0' : '#555';
         keyElement.style.transform = 'translateY(3px)';
+        keyElement.actNote = actNote;
+        keyElement.down = true;
       }
-      keyElement.down = true;
     }
     const velocity = 0.7 + Math.random() * 0.3;
     if ((this.ansNotes != null) && (this.curInputIndex == this.ansNotes.length)) {
@@ -591,13 +614,11 @@ class PianoSynth {
     if ((playTimerId != -1) && (trainMode.startsWith("Test")) && (byUser == true)) {
       return;
     }
-    const ret = await this.playMIDINote(note.note + shiftValue, this.defDuration, velocity);
-    if (keyElement) {
-      if (keyElement.curPlayCt) {
-        onKeyUp(note, byUser);
-      }
-      keyElement.curPlayCtl = ret;
+    const ret = await this.playMIDINote(actNote, this.defDuration, velocity);
+    if (this.allKeysCtl[actNote].curPlayCtl) {
+      this.onKeyUp(note, byUser, actNote);
     }
+    this.allKeysCtl[actNote].curPlayCtl = ret;
   }
 
   checkCorrect() {
@@ -606,13 +627,13 @@ class PianoSynth {
     if (this.ansNotes != null) {
       if (trainMode === 'Test_interval') {
         if (this.curInputIndex == 3) {
-          if ((this.ansNotes[1] == this.dispNotes[2]) && (this.ansNotes[2] == this.dispNotes[1])) {
+          if ((this.ansNotes[1] == this.actNotes[2]) && (this.ansNotes[2] == this.actNotes[1])) {
             return true;
           }
         }
       }
       for (let i = this.skipAnsCnt; i < this.curInputIndex; i ++) {
-        if (this.ansNotes[i] != this.dispNotes[i]) {
+        if (this.ansNotes[i] != this.actNotes[i]) {
           return false;
         }
       }
@@ -633,6 +654,7 @@ class PianoSynth {
     this.dispNames = '';
     for (let i = 0; i < this.maxDispNotes; i ++) {
       this.dispNotes[i] = 0;
+      this.actNotes[i] = 0;
       this.noteColors[i] = 0xFFFF9900;
     }
     window.Display.showNotes([]);
@@ -645,51 +667,29 @@ class PianoSynth {
     for (let i = 0; i < kbNotes.length; i ++) {
       this.onKeyUp(kbNotes[i], false);
     }
-  }
-
-  onKeyRelease(obj, note, curPlayCtl, vol) {
-    const noteVal = note.note + shiftValue;
-    let keepPlayTh = 0.02 + 0.3 * (noteVal - 60) / (108 - 60);
-    if (keepPlayTh < 0.02) {
-        keepPlayTh = 0.02;
-    }
-    if (vol <= keepPlayTh) {
-      // curPlayCtl.stop();
-      curPlayCtl = null;
-    } else {
-      curPlayCtl.setVolume(vol);
-      let ratio = 0.96;
-      if (noteVal < 30) {
-        ratio = 0.985;
-      } else if (noteVal < 40) {
-        ratio = 0.983;
-      } else if (noteVal < 45) {
-        ratio = 0.975;
-      } else if (noteVal < 57) {
-        ratio = 0.975;
-      } else if (noteVal < 69) {
-        ratio = 0.975;
-      } else if (noteVal < 81) {
-        ratio = 0.980;
-      } else if (noteVal < 93) {
-        ratio = 0.985;
-      } else {
-        ratio = 0.990;
+    for (let i = 0; i < this.allKeysCtl.length; i ++) {
+      if (this.allKeysCtl[i].curPlayCtl) {
+        this.onKeyUp(null, false, i);
       }
-      setTimeout(obj.onKeyRelease, 1, obj, note, curPlayCtl, vol * ratio);
     }
   }
 
-  onKeyUp(note, byUser = true) {
+  onKeyUp(note, byUser = true, actNote = null) {
     if ((playTimerId != -1) && (trainMode.startsWith("Train")) && (byUser == true)) {
       return;
     }
-    const keyElement = document.querySelector(`[data-note="${note.name}"]`);
+    let keyElement = null;
+    if (note) {
+      keyElement = document.querySelector(`[data-note="${note.name}"]`);
+    }
+    if ((actNote == null) && keyElement) {
+      actNote = keyElement.actNote;
+    }
     if (keyElement && keyElement.down) {
       keyElement.down = false;
       keyElement.style.background = note.color === 'white' ? 'white' : '#333';
       keyElement.style.transform = 'translateY(0)';
-      if ((playTimerId == -1) && (this.ansNotes == null)) {
+      if ((playTimerId == -1) && (this.ansNotes == null) && (this.kbInputMode == 0)) {
         this.cleanHistNoteInfo();
         globalInfoText = "";
         window.Display.showNotes([]);
@@ -698,9 +698,9 @@ class PianoSynth {
     if ((playTimerId != -1) && (trainMode.startsWith("Test")) && (byUser == true)) {
       return;
     }
-    if (keyElement.curPlayCtl) {
-      setTimeout(this.onKeyRelease, 200, this, note, keyElement.curPlayCtl, 1.0);
-      keyElement.curPlayCtl = null;
+    if (actNote && this.allKeysCtl[actNote].curPlayCtl) {
+      this.allKeysCtl[actNote].curPlayCtl.gainNode.gain.setTargetAtTime(0.00001, this.audioContext.currentTime, 100 * 5 / 1000);
+      this.allKeysCtl[actNote].curPlayCtl = null;
     }
   }
 
@@ -780,8 +780,8 @@ class PianoSynth {
       box-shadow: 0 0 3px rgba(32, 255, 0, 0.5);
       z-index: 11;
     `;
-	refIndicator.id = 'refIndicator';
-	keyboard.appendChild(refIndicator);
+    refIndicator.id = 'refIndicator';
+    keyboard.appendChild(refIndicator);
 
     kbNotes.filter(n => n.color === 'white').forEach((note, index) => {
       const key = document.createElement('div');

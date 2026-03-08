@@ -1,4 +1,4 @@
-// @version V1.0.0.2
+// @version V1.0.0.3
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置界面
@@ -58,7 +58,11 @@ function showLoading(text) {
 function updateLoadingInfo(progress = 100, message = null) {
   const loadingText = document.getElementById('loadingText');
   if (loadingText != null) {
-    loadingText.textContent = '已完成' + progress + '%';
+    if (progress > 0) {
+      loadingText.textContent = '已完成' + progress + '%';
+    } else {
+      loadingText.textContent = '';
+    }
   }
   if (message == null) {
     return;
