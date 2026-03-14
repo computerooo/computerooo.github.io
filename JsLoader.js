@@ -198,9 +198,9 @@ const jsLoader = new JsLoader();
 document.addEventListener('DOMContentLoaded', async () => {
   allNeedJsFile = [
     {path: './AudioManager.js', version: 'V1.0.1.1', force: false },
-    {path: './pianoSynth.js', version: 'V1.0.0.7', force: false },
-    {path: './configUi.js', version: 'V1.0.0.6', force: false },
-    {path: './configOp.js', version: 'V1.0.1.1', force: false },
+    {path: './pianoSynth.js', version: 'V1.0.0.8', force: false },
+    {path: './configUi.js', version: 'V1.0.0.7', force: false },
+    {path: './configOp.js', version: 'V1.0.1.2', force: false },
     {path: './displayer.js', version: 'V1.0.0.4', force: false },
   ];
 
@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   console.log('load all js done.');
   if (isUpdated) {
     updateLoadingInfo(-1, '本次版本有更新，\n请点击“帮助”了解更多信息');
-    await new Promise(resolve => setTimeout(resolve, 1.500));
+    await new Promise(resolve => setTimeout(resolve, 1500));
   }
   document.dispatchEvent(new CustomEvent('ceAllJsLoadDoneEvent', {
     detail: { message: 'One-line event' }

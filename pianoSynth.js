@@ -1,4 +1,4 @@
-// @version V1.0.0.7
+// @version V1.0.0.8
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：合成钢琴音色
@@ -37,7 +37,7 @@ class PianoSynth {
     const length = buffer.length;
     const data = buffer.getChannelData(0);
     var i;
-    var maxVar = 0.1;
+    var maxVar = 0.00001;
 
     for (i = 0; i < length; i ++) {
       if (maxVar < data[i]) {
@@ -48,9 +48,9 @@ class PianoSynth {
       }
     }
 
+    let scale = 0.9 / (maxVar + 0.01);
     for (let i = 0; i < length; i++) {
-      data[i] /= maxVar;
-      data[i] *= 0.6;
+      data[i] *= scale;
     }
   }
 
@@ -569,11 +569,11 @@ class PianoSynth {
         ansNote = note.note;
       }
       this.dispNotes[this.curInputIndex] = note ? note.note : actNote - shiftValue;
-      this.actNotes[this.curInputIndex] = actNote;
+      this.actNotes[this.curInputIndex] = ansNote;
       if (this.ansNotes != null) {
         if (trainMode == 'Test_interval') {
           if (((ansNote == this.ansNotes[1]) || (ansNote == this.ansNotes[2])) &&
-              ((this.curInputIndex == 1) || (this.ansNotes[1] != ansNote || this.ansNotes[1] == this.ansNotes[2]))) {
+              ((this.curInputIndex == 1) || this.checkInterval2ndNote())) {
             this.noteColors[this.curInputIndex] = 0xFF99FF00;
           } else {
             this.noteColors[this.curInputIndex] = 0xFFFF0000;
@@ -641,6 +641,24 @@ class PianoSynth {
     } else {
       return isCorrect;
     }
+  }
+
+  checkInterval2ndNote() {
+    this.curInputIndex ++;
+    let isCorrect = this.checkCorrect();
+    this.curInputIndex --;
+    if (isCorrect) {
+      return isCorrect;
+    }
+    if ((this.ansNotes[1] != this.actNotes[2])
+      && (this.ansNotes[2] != this.actNotes[2])) {
+      return false;
+    }
+    if ((this.ansNotes[1] == this.actNotes[1])
+      || (this.ansNotes[2] == this.actNotes[1])) {
+      return false;
+    }
+    return true;
   }
 
   cleanHistNoteInfo(upAllKeys = false) {

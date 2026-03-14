@@ -1,4 +1,4 @@
-// @version V1.0.0.6
+// @version V1.0.0.7
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置界面
@@ -210,7 +210,7 @@ function configUiLoad() {
   htmlsMore.innerHTML = `
   <table name = 'MORE_FUNCTIONS' style="display: none;">
     <tr class="headers">
-      <td>音阶</td><td>难度</td><td>变化音</td><td>语音播报</td><td>音阶播放</td><td>音色</td>
+      <td>音阶</td><td>难度</td><td>变化音</td><td>语音播报</td><td>语音音量</td><td>音阶播放</td><td>音色</td>
 
       <td rowspan='2'>
         <button onclick="onAddUserDefClick()" name="ADD_USE_DEF" id="ADD_USE_DEF" value="" class="buttons">新建</button>
@@ -268,6 +268,7 @@ function configUiLoad() {
         <select class="selects" name="semitoneSelect" onchange="onSemitoneSelect()">
         <option value='0'>关闭</option>
         <option value='1'>打开</option>
+        </select>
       </td>
 
       <td>
@@ -276,6 +277,21 @@ function configUiLoad() {
         <option value="1">一次</option>
         <option value="2">二次</option>
         <option value="3">每次</option>
+        </select>
+      </td>
+
+      <td>
+        <select class="selects" name="voiceVolSelect" onchange="onVoiceVolSelClick()">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+        <option value="9">9</option>
+        <option value="10">10</option>
         </select>
       </td>
 
@@ -294,6 +310,7 @@ function configUiLoad() {
         <select class="selects" name="timbreSelect" onchange="onTimbreSelect()">
         <option value='0'>00</option>
         <option value='1'>01</option>
+        </select>
       </td>
 
     </tr>

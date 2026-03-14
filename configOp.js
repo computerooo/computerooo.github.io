@@ -1,4 +1,4 @@
-// @version V1.0.1.1
+// @version V1.0.1.2
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置参数
@@ -100,7 +100,7 @@ async function playTipsThis() {
     }
     const cnt = await AudioManagerAPI.getAudioSegmentCnt(id);
     if (cnt > 0) {
-      ret = await AudioManagerAPI.playAudioSegment(id, Math.floor(Math.random() * cnt), tipsVol);
+      ret = await AudioManagerAPI.playAudioSegment(id, Math.floor(Math.random() * cnt), tipsVol * voiceVolCfg);
     }
   }
 
@@ -118,7 +118,7 @@ async function playTipsError() {
   let id = 'voice_003';
   const cnt = await AudioManagerAPI.getAudioSegmentCnt(id);
   if (cnt > 0) {
-    ret = await AudioManagerAPI.playAudioSegment(id, Math.floor(Math.random() * cnt), 0.6);
+    ret = await AudioManagerAPI.playAudioSegment(id, Math.floor(Math.random() * cnt), 0.6 * voiceVolCfg);
   }
 }
 
@@ -160,7 +160,7 @@ async function playTipsAns() {
     noteIndex ++;
     return;
   }
-  ret = await AudioManagerAPI.playAudioSegment(ansIdNames[mainNote < 0 ? 0 : mainNote], index, 1.0);
+  ret = await AudioManagerAPI.playAudioSegment(ansIdNames[mainNote < 0 ? 0 : mainNote], index, 1.0 * voiceVolCfg);
   if (ret) {
     let delay = interval / 1.66;
     if (delay < 110) {
@@ -197,7 +197,7 @@ async function playTipsNext() {
     let id = 'voice_001';
     const cnt = await AudioManagerAPI.getAudioSegmentCnt(id);
     if (cnt > 0) {
-      ret = await AudioManagerAPI.playAudioSegment(id, Math.floor(Math.random() * cnt), tipsVol);
+      ret = await AudioManagerAPI.playAudioSegment(id, Math.floor(Math.random() * cnt), tipsVol * voiceVolCfg);
     }
   }
 
@@ -321,6 +321,12 @@ function onAutoPlay() {
     piano.allKeysUp();
     if ((trainMode.startsWith("Test")) && (noteIndex >= noteSeqs.length)) {
       playTimerId = setTimeout(onAutoPlay, playInterval);
+      if (noteIndex >= (noteSeqs.length + 2)) {
+        if ((trainTimes > 0) && (curTimes >= trainTimes)) {
+          return;
+        }
+        return;
+      }
       noteIndex ++;
       if (noteIndex >= (noteSeqs.length + 1)) {
         for (let i = 0; i < noteSeqs.length; i ++) {
@@ -329,6 +335,10 @@ function onAutoPlay() {
         }
       }
       if (noteIndex >= (noteSeqs.length + 2)) {
+        curTimes ++;
+        if ((trainTimes > 0) && (curTimes >= trainTimes)) {
+          return;
+        }
         noteIndex = 0;
       }
       return;
@@ -403,7 +413,7 @@ function onTestNext(isCorrect) {
     correctAnsCnt ++;
   }
   noteIndex = 0;
-  curTimes ++;
+  curTimes = 0;
   noteSeqs = genNoteSeqs();
   piano.setAnsNotes(noteSeqs);
   if (curAnsCnt < testTimes) {
@@ -726,7 +736,15 @@ function genNoteSeqs() {
         continue;
     }
     seq[i] = genOneNote();
-    for (let j = 0; j < 3; j ++) {
+    let tryTimes = 3;
+    if (trainMode.endsWith("interval")) {
+      if (i == 1) {
+        tryTimes = 1;
+      } else if (i == 2) {
+        tryTimes = 1000000;
+      }
+    }
+    for (let j = 0; j < tryTimes; j ++) {
       let hasFound = 0;
       for (let k = 0; k < i; k ++) {
         if (seq[i] === seq[k]) {
@@ -1362,6 +1380,7 @@ const configPairs = [
   {key:'timbreSelect', def:'0'},
   {key:'semitoneSelect', def:'0'},
   {key:'voiceModeSelect', def:'1'},
+  {key:'voiceVolSelect', def:'10'},
   {key:'scalePlaySelect', def:'1'},
 ];
 
@@ -1437,7 +1456,7 @@ const needDisableUis = [
   {key:'hiSelect'},
   {key:'refSelect'},
   // {key:'speedSelect'},
-  {key:'trainTimesSelect'},
+  // {key:'trainTimesSelect'},
   {key:'ansTimesSelect'},
   // {key:'shiftSelect'},
 ];
@@ -1519,6 +1538,10 @@ function onDifficultySelClick() {
 
 function onVoiceModeSelClick() {
   voiceModeCfg = parseInt(event.target.value, 10);
+}
+
+function onVoiceVolSelClick() {
+  voiceVolCfg = parseInt(event.target.value, 10) / 10.0;
 }
 
 function onScalePlaySelClick() {
