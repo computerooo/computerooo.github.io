@@ -1,4 +1,4 @@
-// @version V1.0.0.7
+// @version V1.0.0.8
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置界面
@@ -13,16 +13,6 @@ function configUiLoad() {
       padding: 0px;
       background: #e0e0f0;
       min-height: 100vh;
-    }
-
-    .piano-key.white:active {
-      background: #e0e0e0 !important;
-      transform: translateY(3px) !important;
-    }
-
-    .piano-key.black:active {
-      background: #555 !important;
-      transform: translateY(3px) !important;
     }
 
     h1 {
@@ -210,7 +200,7 @@ function configUiLoad() {
   htmlsMore.innerHTML = `
   <table name = 'MORE_FUNCTIONS' style="display: none;">
     <tr class="headers">
-      <td>音阶</td><td>难度</td><td>变化音</td><td>语音播报</td><td>语音音量</td><td>音阶播放</td><td>音色</td>
+      <td>音阶</td><td>难度</td><td>变化音</td><td>语音播报</td><td>语音音量</td><td>音阶播放</td><td>音色</td><td>节奏</td>
 
       <td rowspan='2'>
         <button onclick="onAddUserDefClick()" name="ADD_USE_DEF" id="ADD_USE_DEF" value="" class="buttons">新建</button>
@@ -310,6 +300,13 @@ function configUiLoad() {
         <select class="selects" name="timbreSelect" onchange="onTimbreSelect()">
         <option value='0'>00</option>
         <option value='1'>01</option>
+        </select>
+      </td>
+
+      <td>
+        <select class="selects" name="rhythmSelect" onchange="onRhythmSelect()">
+        <option value='0'>匀速</option>
+        <option value='1'>随机</option>
         </select>
       </td>
 

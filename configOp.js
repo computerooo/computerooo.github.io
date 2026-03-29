@@ -1,4 +1,4 @@
-// @version V1.0.1.2
+// @version V1.0.1.3
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置参数
@@ -18,30 +18,69 @@ var difficultyCfg = 3;
 var voiceModeCfg = 1;
 var scalePlayCfg = 0;
 
+var rhythmCfgValue = 0;
+var rhythmSeqs = null;
+
 var shiftValueWhenStart = null;
 
-const triadChords = ['', 'm', 'm', '', '', 'm', 'dim'];
-const seventhChords = ['maj7', 'm7', 'm7', 'maj7', '7', 'm7', 'm7b5'];
-const ninthChords = ['maj9', 'm9', 'm7b9', 'maj9', '9', 'm9', 'm7b5b9'];
 const chordDegNames = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 const ansIdNames = ['ans_c_key', 'ans_bD_key', 'ans_D_key', 'ans_bE_key', 'ans_E_key', 'ans_F_key',
                     'ans_bG_key', 'ans_G_key', 'ans_bA_key', 'ans_A_key', 'ans_bB_key', 'ans_B_key'];
 
 const tipsVol = 0.4;
 
-function getChordFuncName(sing, nNotes) {
-  if ((mainNote == -1) || (seqLen <= 0)) {
-    return '???';
+function getChordFuncName(seq, nSkip) {
+  if ((seq.length < (3 + nSkip)) || (seq.length > (5 + nSkip))) return "???";
+
+  const intervals = [];
+  for (let i = nSkip; i < seq.length - 1; i ++) {
+    const semitones = seq[i + 1] - seq[i];
+    if (semitones !== 3 && semitones !== 4) return "???";
+    intervals.push(semitones);
   }
-  if (nNotes == 3) {
-    return triadChords[sing - 1];
-  } else if (nNotes == 4) {
-    return seventhChords[sing - 1];
-  } else if (nNotes == 5) {
-    return ninthChords[sing - 1];
-  } else {
-    return '???';
+
+  const length = seq.length - nSkip;
+  if (length === 3) {
+    if (intervals[0] === 4 && intervals[1] === 3) return "";
+    if (intervals[0] === 3 && intervals[1] === 4) return "m";
+    if (intervals[0] === 3 && intervals[1] === 3) return "dim";
+    if (intervals[0] === 4 && intervals[1] === 4) return "aug";
+    return "???";
   }
+
+  if (length === 4) {
+    if (intervals[0] === 3 && intervals[1] === 3 && intervals[2] === 3) return "dim7";
+    if (intervals[0] === 3 && intervals[1] === 3 && intervals[2] === 4) return "m7b5";
+    if (intervals[0] === 3 && intervals[1] === 4 && intervals[2] === 3) return "m7";
+    if (intervals[0] === 3 && intervals[1] === 4 && intervals[2] === 4) return "7sus4";
+    if (intervals[0] === 4 && intervals[1] === 3 && intervals[2] === 3) return "7";
+    if (intervals[0] === 4 && intervals[1] === 3 && intervals[2] === 4) return "maj7";
+    if (intervals[0] === 4 && intervals[1] === 4 && intervals[2] === 3) return "aug7";
+    if (intervals[0] === 4 && intervals[1] === 4 && intervals[2] === 4) return "augmaj7";
+    return "???";
+  }
+
+  if (length === 5) {
+    if (intervals[0] === 3 && intervals[1] === 3 && intervals[2] === 3 && intervals[3] === 3) return "dim9";
+    if (intervals[0] === 3 && intervals[1] === 3 && intervals[2] === 3 && intervals[3] === 4) return "m7b9";
+    if (intervals[0] === 3 && intervals[1] === 3 && intervals[2] === 4 && intervals[3] === 3) return "m9b5b13";
+    if (intervals[0] === 3 && intervals[1] === 3 && intervals[2] === 4 && intervals[3] === 4) return "m9b5";
+    if (intervals[0] === 3 && intervals[1] === 4 && intervals[2] === 3 && intervals[3] === 3) return "m9b13";
+    if (intervals[0] === 3 && intervals[1] === 4 && intervals[2] === 3 && intervals[3] === 4) return "m9";
+    if (intervals[0] === 3 && intervals[1] === 4 && intervals[2] === 4 && intervals[3] === 3) return "9sus4";
+    if (intervals[0] === 3 && intervals[1] === 4 && intervals[2] === 4 && intervals[3] === 4) return "m9#11";
+    if (intervals[0] === 4 && intervals[1] === 3 && intervals[2] === 3 && intervals[3] === 3) return "9";
+    if (intervals[0] === 4 && intervals[1] === 3 && intervals[2] === 3 && intervals[3] === 4) return "maj9";
+    if (intervals[0] === 4 && intervals[1] === 3 && intervals[2] === 4 && intervals[3] === 3) return "maj9#5";
+    if (intervals[0] === 4 && intervals[1] === 3 && intervals[2] === 4 && intervals[3] === 4) return "maj9#11";
+    if (intervals[0] === 4 && intervals[1] === 4 && intervals[2] === 3 && intervals[3] === 3) return "aug9";
+    if (intervals[0] === 4 && intervals[1] === 4 && intervals[2] === 3 && intervals[3] === 4) return "augmaj9";
+    if (intervals[0] === 4 && intervals[1] === 4 && intervals[2] === 4 && intervals[3] === 3) return "augmaj9#5";
+    if (intervals[0] === 4 && intervals[1] === 4 && intervals[2] === 4 && intervals[3] === 4) return "augmaj9#5#11";
+    return "???";
+  }
+
+  return "???";
 }
 
 function getChordDegName(sing) {
@@ -51,10 +90,10 @@ function getChordDegName(sing) {
   return chordDegNames[sing - 1];
 }
 
-function getChordName(note) {
+function getChordName(seq, note) {
   const sing = noteToSingName(note).replaceAll(' ', '');
   const pitch = noteToPitchName(note, isFlatKey).replaceAll(' ', '');
-  const funcName = getChordFuncName(parseInt(sing), noteSeqs.length - piano.skipAnsCnt);
+  const funcName = getChordFuncName(seq, piano.skipAnsCnt);
   return pitch + funcName + '\n' + getChordDegName(sing) + funcName;
 }
 
@@ -150,6 +189,9 @@ async function playTipsAns() {
   if (trainMode.endsWith("interval") || trainMode.endsWith("block_chord")) {
     interval = 230;
   }
+  if ((rhythmSeqs != null) && (noteIndex >= 0) && (rhythmSeqs.length > noteIndex)) {
+    interval = interval * rhythmSeqs[noteIndex];
+  }
   if (index < 0) {
     let delay = interval;
     const ret = await piano.playMIDINote(noteSeqs[noteIndex], 1.5, 0.8);
@@ -163,8 +205,10 @@ async function playTipsAns() {
   ret = await AudioManagerAPI.playAudioSegment(ansIdNames[mainNote < 0 ? 0 : mainNote], index, 1.0 * voiceVolCfg);
   if (ret) {
     let delay = interval / 1.66;
-    if (delay < 110) {
-      delay = 110;
+    if (delay < 150) {
+      delay = 150;
+    } else if (delay > 500) {
+      delay = 500;
     }
     ret.gainNode.gain.setTargetAtTime(0.00001, ret.audioContext.currentTime, delay / 2 / 1000);
     playTimerId = setTimeout(playTipsAns, interval);
@@ -286,7 +330,7 @@ function onAutoPlay() {
 
     if ((noteIndex == (refNote == -2 ? 0 : 1)) && trainMode.endsWith("chord") && trainMode.startsWith("Train")) {
       if ((curTimes >= trainTimes) && ((noteSeqs.length - piano.skipAnsCnt) >= 3)) {
-        globalInfoText = getChordName(noteSeqs[piano.skipAnsCnt]);
+        globalInfoText = getChordName(noteSeqs, noteSeqs[piano.skipAnsCnt]);
         globalInfoTextSize = 30;
       }
     }
@@ -386,12 +430,18 @@ function onAutoPlay() {
       if (curTimes >= (trainTimes + ansTimes)) {
         curTimes = 0;
         noteSeqs = genNoteSeqs();
+        rhythmSeqs = generateRhythm(noteSeqs.length);
         playTipsNext();
         return;
       }
     }
   }
 
+  if ((rhythmSeqs != null) && (noteIndex > 0) && (rhythmSeqs.length >= noteIndex)) {
+    let ratio = rhythmSeqs[noteIndex - 1];
+    playTimerId = setTimeout(onAutoPlay, playInterval * ratio);
+    return;
+  }
   playTimerId = setTimeout(onAutoPlay, playInterval);
 }
 
@@ -415,6 +465,7 @@ function onTestNext(isCorrect) {
   noteIndex = 0;
   curTimes = 0;
   noteSeqs = genNoteSeqs();
+  rhythmSeqs = generateRhythm(noteSeqs.length);
   piano.setAnsNotes(noteSeqs);
   if (curAnsCnt < testTimes) {
     globalInfoText = "共答对" + correctAnsCnt + "题\n已完成" + curAnsCnt + "题，共" + testTimes + '题';
@@ -504,12 +555,14 @@ function genOneNote() {
   const res = (note + 12 - mainNote) % 12;
   let j;
 
-  if (semitoneCfg > 0) {
+  if (mainNote == -1) {
     return note;
   }
 
-  if (mainNote == -1) {
-    return note;
+  if (semitoneCfg > 0) {
+    if (!trainMode.endsWith("chord")) {
+      return note;
+    }
   }
 
   for (j = 0; j < majSeq.length; j ++) {
@@ -538,7 +591,7 @@ function genOneNote() {
 function getNextNoteOfChord(curNote) {
   let name = noteToSingName(curNote, isFlatKey);
   let next = curNote + 4;
-  if (mainNote == -1) {
+  if ((mainNote == -1) || (semitoneCfg > 0)){
     next -= Math.floor(Math.random() + 0.5);
     return next;
   }
@@ -1296,6 +1349,10 @@ function onTimbreSelect() {
   timbreValue = parseInt(event.target.value, 10);
 }
 
+function onRhythmSelect() {
+  rhythmCfgValue = parseInt(event.target.value, 10);
+}
+
 function calcRefNote() {
   if (refSelValue < 0) {
     refNote = refSelValue;
@@ -1340,10 +1397,14 @@ function onStartStopClick() {
     shiftValueWhenStart = shiftValue;
     calcRefNote();
     noteSeqs = genNoteSeqs();
+    rhythmSeqs = generateRhythm(noteSeqs.length);
     if (trainMode.startsWith("Test")) {
       correctAnsCnt = 0;
       curAnsCnt = 0;
       piano.setAnsNotes(noteSeqs);
+    }
+    if (trainMode.startsWith("Train_")) {
+      onStartTrain();
     }
     curTimes = 0;
     piano.cleanHistNoteInfo(true);
@@ -1361,6 +1422,13 @@ function onStartStopClick() {
     stopPlay();
     disableUi(false);
     onUseDefSeqMode(seqLen <= 0);
+    if (trainMode.startsWith("Train_")) {
+      let ret = onStopTrain();
+      globalInfoText = "今日练习时长\n" + ret.todayDuration;
+      globalInfoText += "\n累计练习时长\n" + ret.totalDuration;
+      globalInfoTextSize = 20;
+      piano.cleanHistNoteInfo(true);
+    }
   }
 }
 
@@ -1382,6 +1450,7 @@ const configPairs = [
   {key:'voiceModeSelect', def:'1'},
   {key:'voiceVolSelect', def:'10'},
   {key:'scalePlaySelect', def:'1'},
+  {key:'rhythmSelect', def:'0'},
 ];
 
 function loadAllConfigs() {
@@ -1693,4 +1762,118 @@ function onMoreFunctions(en) {
   } else {
     showElementsByName("DEL_USE_DEF", true);
   }
+}
+
+function generateRhythm(len) {
+  if (rhythmCfgValue < 1) {
+    return null;
+  }
+
+  if (!(trainMode.endsWith("_single") || trainMode.endsWith("_broken_chord"))) {
+    return null;
+  }
+
+  const noteValues = [
+    [1],
+    [0.5, 0.5],
+    [1, 0.5, 0.5],
+    [0.5, 0.5, 1],
+    [0.5, 1, 0.5],
+    [0.75, 0.75, 0.5],
+    [0.75, 0.5, 0.75],
+    [0.5, 0.75, 0.75],
+    [1/3, 1/3, 1/3],
+  ];
+
+  if (len <= 2) {
+    return null;
+  }
+
+  let rhythm = new Array(len);
+
+  for (let i = 0; i < len;) {
+    let v = noteValues[Math.floor(Math.random() * noteValues.length)];
+    if (((len - i) < 3) && (v[0] < 0.4)) {
+      continue;
+    }
+    for (let j = 0; j < v.length; j ++) {
+      rhythm[i] = v[j];
+      i ++;
+      if (i >= len) {
+        break;
+      }
+    }
+  }
+
+  return rhythm;
+}
+
+let currentStartTime = null;
+
+function onStartTrain() {
+  currentStartTime = Date.now();
+}
+
+function formatDuration(totalMs) {
+  if (totalMs < 0) totalMs = 0;
+
+  const secondsTotal = Math.floor(totalMs / 1000);
+  const days = Math.floor(secondsTotal / (24 * 3600));
+  const hours = Math.floor((secondsTotal % (24 * 3600)) / 3600);
+  const minutes = Math.floor((secondsTotal % 3600) / 60);
+  const seconds = secondsTotal % 60;
+
+  const parts = [];
+  if (days > 0) parts.push(`${days}天`);
+  if (hours > 0) parts.push(`${hours}小时`);
+  if (minutes > 0) parts.push(`${minutes}分`);
+  if (seconds > 0 || parts.length === 0) parts.push(`${seconds}秒`);
+
+  return parts.join('');
+}
+
+function onStopTrain() {
+  if (currentStartTime === null) {
+    return {
+      todayDuration: '0秒',
+      totalDuration: '0秒'
+    };
+  }
+
+  const endTime = Date.now();
+  const currentSessionMs = endTime - currentStartTime;
+
+  currentStartTime = null;
+
+  const storageKey = 'train_duration_data';
+  const defaultData = {
+    totalMs: 0,
+    lastDate: null,
+    todayMs: 0
+  };
+  let history = loadConfigFromLocal(storageKey, defaultData);
+
+  if (typeof history.totalMs !== 'number') history.totalMs = 0;
+  if (typeof history.todayMs !== 'number') history.todayMs = 0;
+
+  const now = new Date();
+  const todayDateStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+
+  if (history.lastDate !== todayDateStr) {
+    history.todayMs = 0;
+    history.lastDate = todayDateStr;
+  }
+
+  history.totalMs += currentSessionMs;
+  history.todayMs += currentSessionMs;
+
+  saveConfigToLocal(storageKey, history);
+
+  const todayDurationFormatted = formatDuration(history.todayMs);
+  const totalDurationFormatted = formatDuration(history.totalMs);
+
+  return {
+    todayDuration: todayDurationFormatted,
+    totalDuration: totalDurationFormatted
+  };
 }

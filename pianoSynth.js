@@ -1,4 +1,4 @@
-// @version V1.0.0.8
+// @version V1.0.0.9
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：合成钢琴音色
@@ -27,6 +27,8 @@ class PianoSynth {
     for (let i = 0; i < this.allKeysCtl.length; i ++) {
       this.allKeysCtl[i] = {"curPlayCtl": null};
     }
+    this.isPressed = false;
+    this.currentNote = null;
   }
 
   setAnsNotes(ansNotes) {
@@ -801,12 +803,40 @@ class PianoSynth {
     refIndicator.id = 'refIndicator';
     keyboard.appendChild(refIndicator);
 
+    const getKeyFromPoint = (clientX, clientY) => {
+      const elements = document.elementsFromPoint(clientX, clientY);
+      return elements.find(el => el.classList && el.classList.contains('piano-key'));
+    };
+
+    const handleMove = (clientX, clientY) => {
+      if (!this.isPressed) {
+        return;
+      }
+      const key = getKeyFromPoint(clientX, clientY);
+      if (key) {
+        const targetNote = key.note;
+        if (targetNote && (targetNote !== this.currentNote)) {
+          if (this.currentNote) {
+            this.onKeyUp(this.currentNote);
+          }
+          if (key.down == false) {
+            this.onKeyDown(targetNote);
+          }
+          this.currentNote = targetNote;
+        }
+      } else if (this.currentNote) {
+        this.onKeyUp(this.currentNote);
+        this.currentNote = null;
+      }
+    };
+
     kbNotes.filter(n => n.color === 'white').forEach((note, index) => {
       const key = document.createElement('div');
       key.className = 'piano-key white';
       key.dataset.note = note.name;
       key.textContent = `${note.text}`;
       key.down = false;
+      key.note = note;
 
       key.style.cssText = `
         position: absolute;
@@ -832,20 +862,51 @@ class PianoSynth {
         transition: background 0.1s, transform 0.1s;
       `;
 
-      key.addEventListener('mousedown', () => this.onKeyDown(note));
-      key.addEventListener('mouseup', () => this.onKeyUp(note));
-      key.addEventListener('mouseleave', () => {
+      key.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        this.onKeyDown(note);
+        this.isPressed = true;
+      });
+
+      key.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        this.isPressed = false;
         this.onKeyUp(note);
+      });
+
+      key.addEventListener('mouseleave', (e) => {
+        e.preventDefault();
+        this.onKeyUp(note);
+      });
+
+      key.addEventListener('mousemove', (e) => {
+        e.preventDefault();
+        handleMove(e.clientX, e.clientY);
       });
 
       key.addEventListener('touchstart', (e) => {
-          e.preventDefault();
+        e.preventDefault();
         this.onKeyDown(note);
+        this.isPressed = true;
       });
 
-      key.addEventListener('touchend', (e) => {
-          e.preventDefault();
+      const handleTouchEnd = (e) => {
+        e.preventDefault();
+        this.isPressed = false;
         this.onKeyUp(note);
+        if (this.currentNote) {
+          this.onKeyUp(this.currentNote);
+          this.currentNote = null;
+        }
+      };
+
+      key.addEventListener('touchend', handleTouchEnd);
+      key.addEventListener('touchcancel', handleTouchEnd);
+
+      key.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const t = e.touches[0];
+        handleMove(t.clientX, t.clientY);
       });
 
       keyboard.appendChild(key);
@@ -863,6 +924,8 @@ class PianoSynth {
       key.className = 'piano-key black';
       key.dataset.note = note.name;
       key.textContent = `${note.text}`;
+      key.down = false;
+      key.note = note;
 
       key.style.cssText = `
         position: absolute;
@@ -889,20 +952,51 @@ class PianoSynth {
         transition: background 0.1s, transform 0.1s;
       `;
 
-      key.addEventListener('mousedown', () => this.onKeyDown(note));
-      key.addEventListener('mouseup', () => this.onKeyUp(note));
-      key.addEventListener('mouseleave', () => {
-          this.onKeyUp(note);
+      key.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        this.onKeyDown(note);
+        this.isPressed = true;
+      });
+
+      key.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        this.isPressed = false;
+        this.onKeyUp(note)
+      });
+
+      key.addEventListener('mouseleave', (e) => {
+        e.preventDefault();
+        this.onKeyUp(note);
+      });
+
+      key.addEventListener('mousemove', (e) => {
+        e.preventDefault();
+        handleMove(e.clientX, e.clientY);
       });
 
       key.addEventListener('touchstart', (e) => {
-          e.preventDefault();
+        e.preventDefault();
         this.onKeyDown(note);
+        this.isPressed = true;
       });
 
-      key.addEventListener('touchend', (e) => {
-          e.preventDefault();
+      const handleTouchEnd = (e) => {
+        e.preventDefault();
+        this.isPressed = false;
         this.onKeyUp(note);
+        if (this.currentNote) {
+          this.onKeyUp(this.currentNote);
+          this.currentNote = null;
+        }
+      };
+
+      key.addEventListener('touchend', handleTouchEnd);
+      key.addEventListener('touchcancel', handleTouchEnd);
+
+      key.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const t = e.touches[0];
+        handleMove(t.clientX, t.clientY);
       });
 
       keyboard.appendChild(key);
