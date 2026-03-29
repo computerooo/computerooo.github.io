@@ -1,4 +1,4 @@
-// @version V1.0.1.3
+// @version V1.0.1.4
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置参数
@@ -432,6 +432,9 @@ function onAutoPlay() {
         noteSeqs = genNoteSeqs();
         rhythmSeqs = generateRhythm(noteSeqs.length);
         playTipsNext();
+        if (trainMode.startsWith("Train_")) {
+          saveTrainTime(false);
+        }
         return;
       }
     }
@@ -1423,7 +1426,7 @@ function onStartStopClick() {
     disableUi(false);
     onUseDefSeqMode(seqLen <= 0);
     if (trainMode.startsWith("Train_")) {
-      let ret = onStopTrain();
+      let ret = saveTrainTime(true);
       globalInfoText = "今日练习时长\n" + ret.todayDuration;
       globalInfoText += "\n累计练习时长\n" + ret.totalDuration;
       globalInfoTextSize = 20;
@@ -1832,7 +1835,7 @@ function formatDuration(totalMs) {
   return parts.join('');
 }
 
-function onStopTrain() {
+function saveTrainTime(force = true) {
   if (currentStartTime === null) {
     return {
       todayDuration: '0秒',
@@ -1843,7 +1846,11 @@ function onStopTrain() {
   const endTime = Date.now();
   const currentSessionMs = endTime - currentStartTime;
 
-  currentStartTime = null;
+  if (!force && (currentSessionMs < (1000 * 60))) {
+    return;
+  }
+
+  currentStartTime = endTime;
 
   const storageKey = 'train_duration_data';
   const defaultData = {
