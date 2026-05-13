@@ -1,4 +1,4 @@
-// @version V1.0.0.8
+// @version V1.0.0.9
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置界面
@@ -99,6 +99,7 @@ function configUiLoad() {
         <option value="Test_interval">音程考试</option>
         <option value="Test_broken_chord">分解考试</option>
         <option value="Test_block_chord">柱式考试</option>
+        <option value="Test_sight_reading">识谱考试</option>
         <option value="Settings_more">更多功能</option>
         </select>
       </td>
@@ -200,7 +201,7 @@ function configUiLoad() {
   htmlsMore.innerHTML = `
   <table name = 'MORE_FUNCTIONS' style="display: none;">
     <tr class="headers">
-      <td>音阶</td><td>难度</td><td>变化音</td><td>语音播报</td><td>语音音量</td><td>音阶播放</td><td>音色</td><td>节奏</td>
+      <td>谱表</td><td>音阶</td><td>难度</td><td>变化音</td><td>语音播报</td><td>语音音量</td><td>音阶播放</td><td>音色</td><td>节奏</td>
 
       <td rowspan='2'>
         <button onclick="onAddUserDefClick()" name="ADD_USE_DEF" id="ADD_USE_DEF" value="" class="buttons">新建</button>
@@ -217,6 +218,12 @@ function configUiLoad() {
     </tr>
 
     <tr class="selects">
+      <td>
+        <select class="selects" name="clefSelect" onchange="onClefSelClick()">
+        <option value='G' >G谱表</option>
+        <option value='F' >F谱表</option>
+      </td>
+
       <td>
         <select class="selects" name="keySelect" onchange="onKeySelClick()">
         <option value='0' >C调</option>

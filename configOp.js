@@ -1,4 +1,4 @@
-// @version V1.0.1.4
+// @version V1.0.1.5
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：配置参数
@@ -458,6 +458,10 @@ function simStopEvent() {
   }
 }
 
+function onCleanHistNoteInfo() {
+  piano.cleanHistNoteInfo(true);
+}
+
 function onTestNext(isCorrect) {
   clearTimeout(playTimerId);
   piano.allKeysUp();
@@ -473,7 +477,11 @@ function onTestNext(isCorrect) {
   if (curAnsCnt < testTimes) {
     globalInfoText = "共答对" + correctAnsCnt + "题\n已完成" + curAnsCnt + "题，共" + testTimes + '题';
     globalInfoTextSize = 20;
-    playTimerId = setTimeout(onAutoPlay, 600);
+    if (trainMode == "Test_sight_reading") {
+      setTimeout(onCleanHistNoteInfo, 500);
+    } else {
+      playTimerId = setTimeout(onAutoPlay, 600);
+    }
   } else {
     playTimerId = -1;
     setTimeout(simStopEvent, 600);
@@ -855,14 +863,15 @@ function stopPlay() {
   if (trainMode.startsWith("Train")) {
     globalInfoText = "";
   }
-  piano.cleanHistNoteInfo(true);
   piano.setAnsNotes(null);
+  piano.cleanHistNoteInfo(true);
 }
 
 function onModeSelClick() {
   trainMode = event.target.value;
   if (trainMode === 'Settings_more') {
     onMoreFunctions(true);
+    updateSeqLenSel();
     return;
   } else {
     onMoreFunctions(false);
@@ -988,10 +997,12 @@ function updateLowSel() {
   const optionElement = document.createElement('option');
   optionElement.value = -1;
   optionElement.textContent = "不限";
-  selectElement.appendChild(optionElement);
+  if (trainMode != "Test_sight_reading") {
+    selectElement.appendChild(optionElement);
+  }
 
   if (lastIndex < selectElement.options.length) {
-    selectElement.selectedIndex = lastIndex;
+    selectElement.selectedIndex = lastIndex < 0 ? 0 : lastIndex;
   } else {
     selectElement.selectedIndex = selectElement.options.length - 1;
   }
@@ -1015,7 +1026,7 @@ function updateSeqLenSel() {
   const selectElement = document.querySelector('[name="seqLenSelect"]');
   let lastIndex = selectElement.selectedIndex;
   selectElement.innerHTML = '';
-  if (userDefGroups.length > 0) {
+  if ((trainMode != "Test_sight_reading") && (userDefGroups.length > 0)) {
     for (let i = 0; i < userDefGroups.length; i ++) {
       const optionElement = document.createElement('option');
       optionElement.value = 0 - i;
@@ -1062,7 +1073,7 @@ function updateRefSel() {
   optionElement.textContent = "无";
   selectElement.appendChild(optionElement);
 
-  if (trainMode.endsWith('broken_chord')) {
+  if (trainMode.endsWith('broken_chord') || (trainMode == "Test_sight_reading")) {
     lastIndex = selectElement.options.length - 1;
   }
   if (lastIndex < selectElement.options.length) {
@@ -1104,10 +1115,12 @@ function updateHiSel() {
   const optionElement = document.createElement('option');
   optionElement.value = -1;
   optionElement.textContent = "不限";
-  selectElement.appendChild(optionElement);
+  if (trainMode != "Test_sight_reading") {
+    selectElement.appendChild(optionElement);
+  }
 
   if (lastIndex < selectElement.options.length) {
-    selectElement.selectedIndex = lastIndex;
+    selectElement.selectedIndex = lastIndex < 0 ? 0 : lastIndex;
   } else {
     selectElement.selectedIndex = selectElement.options.length - 1;
   }
@@ -1163,6 +1176,11 @@ function updateKbNoteNames() {
       }
     }
   }
+}
+
+function onClefSelClick() {
+  window.Display.setClefType(event.target.value);
+  piano.cleanHistNoteInfo(true);
 }
 
 function onKeySelClick() {
@@ -1414,7 +1432,9 @@ function onStartStopClick() {
     if ((scalePlayCfg == 0) || (scalePlayCfg >= 4)) {
       genRefSeqs();
     }
-    playTimerId = setTimeout(onAutoPlay, 100);
+    if (trainMode != "Test_sight_reading") {
+        playTimerId = setTimeout(onAutoPlay, 100);
+    }
   } else {
     if (shiftValueWhenStart != null) {
       setShiftToValue(shiftValueWhenStart / 12);
@@ -1437,6 +1457,7 @@ function onStartStopClick() {
 
 const configPairs = [
   {key:'userDefSpeed', def:'120'},
+  {key:'clefSelect', def:'G'},
   {key:'keySelect', def:'0'},
   {key:"modeSelect", def:'Train_single'},
   {key:'seqLenSelect', def:'3'},
@@ -1527,8 +1548,8 @@ const needDisableUis = [
   {key:'lowSelect'},
   {key:'hiSelect'},
   {key:'refSelect'},
-  // {key:'speedSelect'},
-  // {key:'trainTimesSelect'},
+  {key:'speedSelect'},
+  {key:'trainTimesSelect'},
   {key:'ansTimesSelect'},
   // {key:'shiftSelect'},
 ];
@@ -1537,18 +1558,28 @@ function disableUi(disabledReq) {
   for (let i = 0; i < needDisableUis.length; i ++) {
     const key = needDisableUis[i].key;
     let disabled = disabledReq;
+
+    if (trainMode == "Test_sight_reading") {
+      if ((key === 'refSelect') || (key === 'trainTimesSelect') || (key === 'speedSelect')) {
+        disabled = true;
+      }
+    } else {
+      if ((key === 'trainTimesSelect') || (key === 'speedSelect')) {
+        disabled = false;
+      }
+    }
     if (trainMode.endsWith("broken_chord")) {
       if (key === 'refSelect') {
         disabled = true;
       }
     }
     if (trainMode.startsWith("Test")) {
-      if ((key === 'trainTimesSelect') || (key === 'ansTimesSelect')) {
+      if (key === 'ansTimesSelect') {
         disabled = true;
       }
     }
     if (trainMode.startsWith("Train")) {
-      if ((key === 'trainTimesSelect') || (key === 'ansTimesSelect')) {
+      if (key === 'ansTimesSelect') {
         disabled = false;
       }
     }
@@ -1557,6 +1588,7 @@ function disableUi(disabledReq) {
         disabled = true;
       }
     }
+
     const selectElement = document.querySelector(`[name="${key}"]`);
     if (selectElement != null) {
       selectElement.disabled = disabled;
