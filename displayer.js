@@ -1,4 +1,4 @@
-// @version V1.0.0.5
+// @version V1.0.0.6
 //作者：电脑圈圈 https://space.bilibili.com/565718633
 //日期：2025-12-07
 //功能：显示器
@@ -93,73 +93,73 @@ class SimpleDisplay {
         background: #0080ff;
         box-shadow: 0 0 3px rgba(0, 255, 128, 0.7);
       `;
-       line.name = 'line';
-       line.id = 'line';
-       if (i != -1) {
-         this.allLinesG.push(line);
-       }
-       if (i != 4) {
-         this.allLinesF.push(line);
-       }
-
-       const color = '#F90';
-       const fClefSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-       fClefSvg.setAttribute('width', '60');
-       fClefSvg.setAttribute('height', '100');
-       fClefSvg.setAttribute('viewBox', '0 0 60 100');
-
-       const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-       path1.setAttribute('fill', 'none');
-       path1.setAttribute('stroke', color);
-       path1.setAttribute('stroke-width', '3');
-       path1.setAttribute('stroke-linecap', 'round');
-
-       const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-       path2.setAttribute('fill', 'none');
-       path2.setAttribute('stroke', color);
-       path2.setAttribute('stroke-width', '3');
-       path2.setAttribute('stroke-linecap', 'round');
-
-       const path3 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-       path3.setAttribute('fill', 'none');
-       path3.setAttribute('stroke', color);
-       path3.setAttribute('stroke-width', '3');
-       path3.setAttribute('stroke-linecap', 'round');
-
-       path1.setAttribute('d', 'M12.5,28.75 Q8.75,21.25 16.25,25 Q23.75,28.75 23.75,40 Q23.75,51.25 12.5,66.25');
-       path2.setAttribute('d', 'M12.5,28.75 Q12.5,28.75 14.375,25 Q21.875,28.75 21.875,40 Q21.875,51.25 12.5,66.25');
-       path3.setAttribute('d', 'M12.5,28.75 Q17,28.75 12.5,25 Q20,28.75 20,40 Q20,51.25 12.5,66.25');
-
-       const circle1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-       circle1.setAttribute('cx', '11');
-       circle1.setAttribute('cy', '28');
-       circle1.setAttribute('r', '5');
-       circle1.setAttribute('fill', color);
-
-       const circle2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-       circle2.setAttribute('cx', '35');
-       circle2.setAttribute('cy', '32');
-       circle2.setAttribute('r', '3.5');
-       circle2.setAttribute('fill', color);
-
-       const circle3 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-       circle3.setAttribute('cx', '35');
-       circle3.setAttribute('cy', '46');
-       circle3.setAttribute('r', '3.5');
-       circle3.setAttribute('fill', color);
-
-       fClefSvg.appendChild(path1);
-       fClefSvg.appendChild(path2);
-       fClefSvg.appendChild(path3);
-       fClefSvg.appendChild(circle1);
-       fClefSvg.appendChild(circle2);
-       fClefSvg.appendChild(circle3);
-
-       fClefSvg.style.position = 'relative';
-       fClefSvg.style.zIndex = '8';
-
-       this.fClefSvg = fClefSvg;
+      line.name = 'line';
+      line.id = 'line';
+      if (i != -1) {
+        this.allLinesG.push(line);
+      }
+      if (i != 4) {
+        this.allLinesF.push(line);
+      }
     }
+
+    const color = '#F90';
+    const fClefSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    fClefSvg.setAttribute('width', '60');
+    fClefSvg.setAttribute('height', '100');
+    fClefSvg.setAttribute('viewBox', '0 0 60 100');
+
+    const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path1.setAttribute('fill', 'none');
+    path1.setAttribute('stroke', color);
+    path1.setAttribute('stroke-width', '3');
+    path1.setAttribute('stroke-linecap', 'round');
+
+    const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path2.setAttribute('fill', 'none');
+    path2.setAttribute('stroke', color);
+    path2.setAttribute('stroke-width', '3');
+    path2.setAttribute('stroke-linecap', 'round');
+
+    const path3 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path3.setAttribute('fill', 'none');
+    path3.setAttribute('stroke', color);
+    path3.setAttribute('stroke-width', '3');
+    path3.setAttribute('stroke-linecap', 'round');
+
+    path1.setAttribute('d', 'M12.5,28.75 Q8.75,21.25 16.25,25 Q23.75,28.75 23.75,40 Q23.75,51.25 12.5,66.25');
+    path2.setAttribute('d', 'M12.5,28.75 Q12.5,28.75 14.375,25 Q21.875,28.75 21.875,40 Q21.875,51.25 12.5,66.25');
+    path3.setAttribute('d', 'M12.5,28.75 Q17,28.75 12.5,25 Q20,28.75 20,40 Q20,51.25 12.5,66.25');
+
+    const circle1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle1.setAttribute('cx', '11');
+    circle1.setAttribute('cy', '28');
+    circle1.setAttribute('r', '5');
+    circle1.setAttribute('fill', color);
+
+    const circle2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle2.setAttribute('cx', '35');
+    circle2.setAttribute('cy', '32');
+    circle2.setAttribute('r', '3.5');
+    circle2.setAttribute('fill', color);
+
+    const circle3 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle3.setAttribute('cx', '35');
+    circle3.setAttribute('cy', '46');
+    circle3.setAttribute('r', '3.5');
+    circle3.setAttribute('fill', color);
+
+    fClefSvg.appendChild(path1);
+    fClefSvg.appendChild(path2);
+    fClefSvg.appendChild(path3);
+    fClefSvg.appendChild(circle1);
+    fClefSvg.appendChild(circle2);
+    fClefSvg.appendChild(circle3);
+
+    fClefSvg.style.position = 'relative';
+    fClefSvg.style.zIndex = '8';
+
+    this.fClefSvg = fClefSvg;
 
     const numberArea = document.createElement('div');
     numberArea.style.cssText = `

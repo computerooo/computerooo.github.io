@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     {path: './pianoSynth.js', version: 'V1.0.1.1', force: false },
     {path: './configUi.js', version: 'V1.0.0.9', force: false },
     {path: './configOp.js', version: 'V1.0.1.5', force: false },
-    {path: './displayer.js', version: 'V1.0.0.5', force: false },
+    {path: './displayer.js', version: 'V1.0.0.6', force: false },
   ];
 
   console.log('start to load js...');
